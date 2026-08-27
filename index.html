@@ -129,7 +129,6 @@
             
             <div class="checkbox-group">
                 <label><input type="checkbox" id="chk-remember"> 아이디 저장</label>
-                <label><input type="checkbox" id="chk-autologin"> 자동 로그인</label>
             </div>
 
             <button class="btn-main" onclick="handleLogin()">로그인 🚀</button>
@@ -324,7 +323,7 @@
         renderRankingList();
     }
 
-    // 랭킹 리스트 렌더링 (관리자 강제 점수/마스터 표시 제거)
+    // 랭킹 리스트 렌더링
     function renderRankingList() {
         let rankingEl = document.getElementById('ranking-list');
         if (!rankingEl) return;
@@ -419,7 +418,6 @@
         }
 
         await saveSpecificData('rooms/' + rId, room);
-        localStorage.setItem('omok_session_room', rId);
         renderRoomOrGameView();
     }
 
@@ -457,7 +455,6 @@
         }
 
         currentRoomId = null;
-        localStorage.removeItem('omok_session_room');
         switchView('view-lobby');
         fetchSystemData();
     }
@@ -636,18 +633,16 @@
         if (!user || user.pw !== pw) return alert("아이디 또는 비밀번호가 올바르지 않습니다.");
 
         currentUser = user;
-        localStorage.setItem('omok_session_user', id);
         switchView('view-lobby');
         startMainSync();
         startHeartbeat();
     }
 
     function handleLogout() {
-        localStorage.removeItem('omok_session_user');
-        localStorage.removeItem('omok_session_room');
         currentUser = null;
         currentRoomId = null;
         if (heartbeatInterval) clearInterval(heartbeatInterval);
+        if (syncInterval) clearInterval(syncInterval);
         switchView('view-auth');
     }
 
@@ -673,7 +668,6 @@
 
         await saveSpecificData('rooms/' + rId, newRoom);
         currentRoomId = rId;
-        localStorage.setItem('omok_session_room', rId);
         renderRoomOrGameView();
     }
 
@@ -796,24 +790,10 @@
         chatMsgs.scrollTop = chatMsgs.scrollHeight;
     }
 
-    window.onload = async () => {
-        let savedUser = localStorage.getItem('omok_session_user');
-        let savedRoom = localStorage.getItem('omok_session_room');
-        
-        if (savedUser) {
-            await fetchSystemData();
-            if (globalData.users[savedUser]) {
-                currentUser = globalData.users[savedUser];
-                switchView('view-lobby');
-                startMainSync();
-                startHeartbeat();
-
-                if (savedRoom && globalData.rooms[savedRoom]) {
-                    currentRoomId = savedRoom;
-                    renderRoomOrGameView();
-                }
-            }
-        }
+    // 새로고침 시 무조건 로그인 화면부터 시작하도록 세션 체크 로직 제거
+    window.onload = () => {
+        localStorage.clear(); // 기존의 꼬인 세션 데이터 완전 초기화
+        switchView('view-auth');
     };
 </script>
 </body>
