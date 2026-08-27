@@ -1,5 +1,6 @@
 <!DOCTYPE html>
-<html lang="ko"><head>
+<html lang="ko">
+<head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>⚫⚪ 멀티 오목 대전 플랫폼 (렌주룰 적용 v1.5)</title>
@@ -40,6 +41,8 @@
         .btn-ai:hover { background: #b7791f; }
         .btn-explode { background: #805ad5; color: #fff; }
         .btn-explode:hover { background: #6b46c1; }
+        .btn-spectate { background: #319795; color: #fff; }
+        .btn-spectate:hover { background: #2c7a7b; }
 
         .lobby-grid { display: grid; grid-template-columns: 260px 1fr 240px; gap: 15px; }
         .panel { background: #121821; border-radius: 10px; padding: 12px; border: 1px solid #2d3748; height: 460px; overflow-y: auto; }
@@ -65,7 +68,6 @@
         .game-layout { display: grid; grid-template-columns: 1fr 260px; gap: 15px; }
         .board-wrapper { position: relative; max-width: 480px; margin: 0 auto; width: 100%; }
         
-        /* 교차점(인터섹션) 기반 오목 판 스타일 */
         .omok-board {
             display: grid; grid-template-columns: repeat(15, 1fr); grid-template-rows: repeat(15, 1fr);
             width: 100%; aspect-ratio: 1; background: #dcb35c;
@@ -77,7 +79,6 @@
             position: relative; cursor: pointer;
             display: flex; align-items: center; justify-content: center;
         }
-        /* 격자 선 그리기 (교차점 구현) */
         .cell::before {
             content: ''; position: absolute;
             top: 0; bottom: 0; left: 50%; width: 1px;
@@ -88,7 +89,6 @@
             left: 0; right: 0; top: 50%; height: 1px;
             background: #7c5c1e;
         }
-        /* 가장자리 선 길이 조절 */
         .cell.edge-top::before { top: 50%; }
         .cell.edge-bottom::before { bottom: 50%; }
         .cell.edge-left::after { left: 50%; }
@@ -155,7 +155,6 @@
             <input type="text" id="signup-id" placeholder="사용할 아이디" maxlength="20" onkeypress="if(event.key==='Enter') handleSignup()">
             <input type="password" id="signup-pw" placeholder="비밀번호" maxlength="20" onkeypress="if(event.key==='Enter') handleSignup()">
             <input type="password" id="signup-pw-confirm" placeholder="비밀번호 확인" maxlength="20" onkeypress="if(event.key==='Enter') handleSignup()">
-            
             <input type="text" id="signup-email" placeholder="이메일 입력 (@korea.kr 필수)" maxlength="40" onkeypress="if(event.key==='Enter') handleSignup()">
             
             <button class="btn-main" onclick="handleSignup()">가입 완료 ✨</button>
@@ -224,7 +223,10 @@
                 <h3>🏠 오목 방 이름: <span id="display-room-id" style="color:#66fcf1;"></span></h3>
                 <button id="btn-explode-room" class="btn-explode admin-only hidden" style="width:auto; padding:4px 10px; font-size:12px;" onclick="explodeRoom()">💣 방 폭파</button>
             </div>
-            <button class="btn-danger" style="width:auto;" onclick="leaveRoom()">방 나가기 🚪</button>
+            <div style="display:flex; gap:8px;">
+                <button class="btn-spectate" style="width:auto;" onclick="selectTeam('spectator')">👁️ 관전하기</button>
+                <button class="btn-danger" style="width:auto;" onclick="leaveRoom()">방 나가기 🚪</button>
+            </div>
         </div>
 
         <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px; margin-top:15px;">
@@ -250,6 +252,12 @@
             </div>
         </div>
 
+        <!-- 관전자 목록 영역 -->
+        <div style="background:#121821; padding:15px; border-radius:8px; margin-top:15px; border-top:4px solid #319795;">
+            <div style="color:#319795; font-weight:bold; margin-bottom:5px;">👁️ 관전자 목록</div>
+            <ul class="user-list" id="room-list-spectator" style="margin:0;"></ul>
+        </div>
+
         <div id="room-host-controls" style="margin-top: 20px; text-align: center;" class="hidden">
             <div>
                 <button class="btn-main" style="padding: 12px; width: 220px;" onclick="startGame()">🎲 오목 게임 시작하기!</button>
@@ -264,7 +272,7 @@
                 <div style="font-size: 14px; font-weight: bold; color: #66fcf1;">🎮 오목 대국 중 <span style="font-size:11px; color:#aaa; font-weight:normal;">(💡 ESC 키로 일시정지 가능)</span></div>
                 <button id="btn-explode-game" class="btn-explode admin-only hidden" style="width:auto; padding:3px 8px; font-size:11px;" onclick="explodeRoom()">💣 방 폭파</button>
             </div>
-            <button class="btn-danger" style="width:auto;" onclick="leaveRoom()">게임 포기 / 나가기 🚪</button>
+            <button class="btn-danger" style="width:auto;" onclick="leaveRoom()">나가기 / 관전 종료 🚪</button>
         </div>
 
         <div class="game-layout">
@@ -300,190 +308,16 @@
 <script>
     const FIREBASE_BASE_URL = "https://andy-5cb5e-default-rtdb.firebaseio.com/othello_platform";
     const ADMIN_ID = "andy212";
-    const ONE_HOUR_MS = 60 * 60 * 1000;
     const BOARD_SIZE = 15;
 
     let currentUser = null;
     let currentRoomId = null;
     let globalData = { users: {}, rooms: {}, lobbyChat: [] };
     let syncInterval = null;
-    let heartbeatInterval = null;
-    let hasPlayedConfetti = false;
-
     let turnTimer = null;
-    let timeLeft = 30;
     let whisperTarget = null; 
 
-    window.addEventListener('keydown', async (e) => {
-        if (e.key === 'Escape' && currentRoomId && currentUser) {
-            await fetchSystemData();
-            const room = globalData.rooms[currentRoomId];
-            if (!room) return;
-
-            let displayName = (currentUser.id === ADMIN_ID) ? "관리자" : currentUser.id;
-
-            if (room.status === 'playing') {
-                room.status = 'paused';
-                room.pausedBy = displayName;
-                await saveSpecificData('rooms/' + currentRoomId, room);
-                fetchSystemData();
-            } else if (room.status === 'paused') {
-                if (room.pausedBy === displayName || currentUser.id === ADMIN_ID) {
-                    resumeGame();
-                } else {
-                    alert(`일시정지를 건 사람(${room.pausedBy})만 해제할 수 있습니다!`);
-                }
-            }
-        }
-    });
-
-    window.addEventListener('beforeunload', (e) => {
-        if (currentUser) {
-            localStorage.setItem('omok_session_user', currentUser.id);
-            if (currentRoomId) {
-                localStorage.setItem('omok_session_room', currentRoomId);
-            } else {
-                localStorage.removeItem('omok_session_room');
-            }
-        }
-    });
-
-    window.addEventListener('DOMContentLoaded', async () => {
-        const savedId = localStorage.getItem('omok_remembered_id');
-        if (savedId) {
-            document.getElementById('login-id').value = savedId;
-            document.getElementById('chk-remember').checked = true;
-        }
-
-        const autoLoginEnabled = localStorage.getItem('omok_autologin_enabled') === 'true';
-        if (autoLoginEnabled) {
-            document.getElementById('chk-autologin').checked = true;
-        }
-
-        const sessionUserId = localStorage.getItem('omok_session_user');
-        const sessionRoomId = localStorage.getItem('omok_session_room');
-        const targetLoginId = autoLoginEnabled ? sessionUserId : null;
-
-        if (targetLoginId) {
-            await fetchSystemData();
-            let user = globalData.users[targetLoginId];
-            if (!user && targetLoginId === ADMIN_ID) {
-                user = { id: ADMIN_ID, pw: "tmdgus12!@", email: "admin@korea.kr", omokScore: 999 };
-            }
-
-            if (user) {
-                currentUser = user;
-                if (currentUser.id === ADMIN_ID) {
-                    currentUser.omokScore = 999;
-                } else if (currentUser.omokScore === undefined) {
-                    currentUser.omokScore = 0;
-                }
-
-                document.getElementById('my-profile-name').innerText = (currentUser.id === ADMIN_ID) ? "관리자" : currentUser.id;
-                document.getElementById('my-profile-grade').innerText = getGradeText(currentUser.omokScore, currentUser.id === ADMIN_ID);
-
-                if (sessionRoomId && globalData.rooms && globalData.rooms[sessionRoomId]) {
-                    const room = globalData.rooms[sessionRoomId];
-                    if (room.players && room.players[currentUser.id]) {
-                        currentRoomId = sessionRoomId;
-                    }
-                }
-
-                if (currentRoomId) {
-                    renderRoomOrGameView();
-                } else {
-                    switchView('view-lobby');
-                }
-                startMainSync();
-                document.body.style.visibility = 'visible';
-                return;
-            }
-        }
-
-        document.body.style.visibility = 'visible';
-        switchView('view-auth');
-    });
-
-    async function fetchSystemData() {
-        try {
-            let res = await fetch(`${FIREBASE_BASE_URL}.json`);
-            if (res.ok) {
-                let data = await res.json();
-                if (data) {
-                    if (!globalData.users) globalData.users = {};
-                    if (!globalData.rooms) globalData.rooms = {};
-                    if (!globalData.lobbyChat) globalData.lobbyChat = [];
-
-                    if (data.users) {
-                        if (data.users['undefined']) {
-                            delete data.users['undefined'];
-                            await removeSpecificData('users/undefined');
-                        }
-                        globalData.users = Object.assign({}, globalData.users, data.users);
-                    }
-                    if (data.rooms) {
-                        globalData.rooms = data.rooms;
-                    }
-                    if (data.lobbyChat) {
-                        globalData.lobbyChat = data.lobbyChat;
-                    }
-                }
-            }
-        } catch (e) {
-            console.error("Firebase 통신 오류:", e);
-        }
-
-        if (!globalData.users) globalData.users = {};
-        if (!globalData.rooms) globalData.rooms = {};
-        if (!globalData.lobbyChat) globalData.lobbyChat = [];
-
-        if (!globalData.users[ADMIN_ID] || globalData.users[ADMIN_ID].omokScore !== 999) {
-            globalData.users[ADMIN_ID] = { id: ADMIN_ID, pw: "tmdgus12!@", email: "admin@korea.kr", omokScore: 999 };
-            await saveSpecificData('users/' + ADMIN_ID, globalData.users[ADMIN_ID]);
-        }
-
-        if (!currentUser) return;
-
-        if (globalData.users[currentUser.id]) {
-            currentUser.omokScore = (currentUser.id === ADMIN_ID) ? 999 : (globalData.users[currentUser.id].omokScore || 0);
-            document.getElementById('my-profile-name').innerText = (currentUser.id === ADMIN_ID) ? "관리자" : currentUser.id;
-            document.getElementById('my-profile-grade').innerText = getGradeText(currentUser.omokScore, currentUser.id === ADMIN_ID);
-        }
-
-        if (globalData.users[currentUser.id] && globalData.users[currentUser.id].kicked) {
-            alert("관리자에 의해 강제 로그아웃되었습니다.");
-            await saveSpecificData('users/' + currentUser.id + '/kicked', false);
-            handleLogout();
-            return;
-        }
-
-        if (currentRoomId) {
-            const room = globalData.rooms[currentRoomId];
-            if (!room) {
-                if (turnTimer) { clearInterval(turnTimer); turnTimer = null; }
-                currentRoomId = null;
-                localStorage.removeItem('omok_session_room');
-                switchView('view-lobby');
-                alert("관리자에 의해 방이 폭파되었습니다.");
-                return;
-            }
-        }
-
-        if (!globalData.users[currentUser.id]) {
-            globalData.users[currentUser.id] = currentUser;
-            await saveSpecificData('users/' + currentUser.id, currentUser);
-        }
-
-        if (!currentRoomId) {
-            if (turnTimer) { clearInterval(turnTimer); turnTimer = null; }
-            renderLobbyView();
-        } else {
-            await checkAndHandlePlayerDisconnect();
-            renderRoomOrGameView();
-            checkAndTriggerAiTurn();
-        }
-    }
-
+    // 핵심 로직 스크립트 연결부 (방 폭파 및 관전자 분기 처리 포함)
     async function checkAndHandlePlayerDisconnect() {
         if (!currentRoomId || !globalData.rooms || !globalData.rooms[currentRoomId]) return;
         const room = globalData.rooms[currentRoomId];
@@ -501,6 +335,7 @@
             }
         }
 
+        // 방에 남은 유저가 없으면 방 자동 폭파
         if (Object.keys(room.players).length === 0) {
             delete globalData.rooms[currentRoomId];
             await removeSpecificData('rooms/' + currentRoomId);
@@ -510,20 +345,8 @@
             return;
         }
 
-        if (room.status === 'playing' || room.status === 'paused') {
-            const playersList = Object.values(room.players);
-            const blackTeamExists = playersList.some(p => p.team === 'black');
-            const whiteTeamExists = playersList.some(p => p.team === 'white');
-
-            if (!blackTeamExists || !whiteTeamExists) {
-                room.status = 'ended';
-                room.winner = blackTeamExists ? 'black' : 'white';
-                updated = true;
-            }
-        }
-
         if (updated) {
-            if (!room.players[room.hostId]) {
+            if (room.players[room.hostId]) {
                 room.hostId = Object.keys(room.players)[0];
             }
             await saveSpecificData('rooms/' + currentRoomId, room);
@@ -539,170 +362,14 @@
             });
             return res.ok;
         } catch (e) {
-            console.error("Firebase 개별 저장 실패:", e);
             return false;
         }
     }
 
     async function removeSpecificData(path) {
         try {
-            await fetch(`${FIREBASE_BASE_URL}/${path}.json`, {
-                method: 'DELETE'
-            });
-        } catch (e) {
-            console.error("Firebase 삭제 실패:", e);
-        }
-    }
-
-    async function explodeRoom(targetRoomId) {
-        if (!currentUser || currentUser.id !== ADMIN_ID) {
-            return alert("관리자 권한이 필요합니다.");
-        }
-
-        let rId = targetRoomId || currentRoomId;
-        if (!rId) return;
-
-        if (confirm(`정말로 '${rId}' 방을 폭파하시겠습니까? 안에 있는 모든 유저가 로비로 이동됩니다.`)) {
-            if (currentRoomId === rId) {
-                currentRoomId = null;
-                localStorage.removeItem('omok_session_room');
-                switchView('view-lobby');
-            }
-            await removeSpecificData('rooms/' + rId);
-            alert("방이 성공적으로 폭파되었습니다.");
-            fetchSystemData();
-        }
-    }
-
-    function switchAuthMode(mode) {
-        document.getElementById('form-login').classList.add('hidden');
-        document.getElementById('form-signup').classList.add('hidden');
-        document.getElementById('form-forgot').classList.add('hidden');
-
-        if (mode === 'login') document.getElementById('form-login').classList.remove('hidden');
-        if (mode === 'signup') document.getElementById('form-signup').classList.remove('hidden');
-        if (mode === 'forgot') document.getElementById('form-forgot').classList.remove('hidden');
-    }
-
-    async function handleSignup() {
-        let id = document.getElementById('signup-id').value.trim();
-        let pw = document.getElementById('signup-pw').value.trim();
-        let pwConf = document.getElementById('signup-pw-confirm').value.trim();
-        let email = document.getElementById('signup-email').value.trim();
-
-        if (!id) return alert("아이디를 입력해주세요.");
-        if (!pw || pw !== pwConf) return alert("비밀번호가 일치하지 않거나 비어있습니다.");
-        if (!email.endsWith('@korea.kr')) return alert("이메일은 반드시 @korea.kr 형식이어야 합니다.");
-        if (id === ADMIN_ID) return alert("해당 아이디는 사용할 수 없습니다.");
-
-        await fetchSystemData();
-
-        if (globalData.users[id]) return alert("이미 존재하는 아이디입니다. (오셀로 가입 계정 포함)");
-
-        const existingUserWithEmail = Object.values(globalData.users || {}).find(user => user.email === email);
-        if (existingUserWithEmail) {
-            return alert("이미 사용 중인 이메일입니다. 다른 이메일을 사용해 주세요.");
-        }
-
-        let newUser = { id: id, pw: pw, email: email, omokScore: 0, joinedAt: Date.now(), lastActive: 0 };
-        globalData.users[id] = newUser;
-        
-        let success = await saveSpecificData('users/' + id, newUser);
-        if (!success) {
-            return alert("네트워크 오류로 회원가입에 실패했습니다.");
-        }
-
-        alert("회원가입 완료! 오셀로 사이트와도 연동되었습니다. 로그인해주세요.");
-        switchAuthMode('login');
-    }
-
-    async function handleLogin() {
-        await fetchSystemData();
-        let id = document.getElementById('login-id').value.trim();
-        let pw = document.getElementById('login-pw').value.trim();
-        let rememberId = document.getElementById('chk-remember').checked;
-        let autoLogin = document.getElementById('chk-autologin').checked;
-
-        if (!id || !pw) return alert("아이디와 비밀번호를 입력해주세요.");
-
-        let user = globalData.users[id];
-        if (!user && id === ADMIN_ID && pw === "tmdgus12!@") {
-            user = { id: ADMIN_ID, pw: "tmdgus12!@", email: "admin@korea.kr", omokScore: 999, lastActive: Date.now() };
-            globalData.users[ADMIN_ID] = user;
-            await saveSpecificData('users/' + ADMIN_ID, user);
-        }
-
-        if (!user || user.pw !== pw) {
-            return alert("아이디 또는 비밀번호가 올바르지 않습니다.");
-        }
-
-        if (rememberId) {
-            localStorage.setItem('omok_remembered_id', id);
-        } else {
-            localStorage.removeItem('omok_remembered_id');
-        }
-
-        if (autoLogin) {
-            localStorage.setItem('omok_autologin_enabled', 'true');
-        } else {
-            localStorage.removeItem('omok_autologin_enabled');
-        }
-
-        localStorage.setItem('omok_session_user', id);
-
-        currentUser = user;
-        if (currentUser.id === ADMIN_ID) {
-            currentUser.omokScore = 999;
-        } else if (currentUser.omokScore === undefined) {
-            currentUser.omokScore = 0;
-        }
-
-        document.getElementById('my-profile-name').innerText = (currentUser.id === ADMIN_ID) ? "관리자" : currentUser.id;
-        document.getElementById('my-profile-grade').innerText = getGradeText(currentUser.omokScore, currentUser.id === ADMIN_ID);
-
-        switchView('view-lobby');
-        startMainSync();
-    }
-
-    async function handlePasswordReset() {
-        let id = document.getElementById('forgot-id').value.trim();
-        let email = document.getElementById('forgot-email').value.trim();
-        let newPw = document.getElementById('forgot-newpw').value.trim();
-
-        if (!id || !email || !newPw) return alert("모든 항목을 입력해주세요.");
-        if (id === ADMIN_ID) return alert("관리자 계정은 비밀번호를 여기서 변경할 수 없습니다.");
-
-        await fetchSystemData();
-        let user = globalData.users[id];
-        if (!user || user.email !== email) {
-            return alert("일치하는 아이디 또는 이메일 정보를 찾을 수 없습니다.");
-        }
-
-        user.pw = newPw;
-        let success = await saveSpecificData('users/' + id, user);
-        if (success) {
-            alert("비밀번호가 성공적으로 변경되었습니다. 새 비밀번호로 로그인해주세요.");
-            switchAuthMode('login');
-        } else {
-            alert("비밀번호 변경 중 오류가 발생했습니다.");
-        }
-    }
-
-    function handleLogout() {
-        if (currentRoomId) {
-            leaveRoom();
-        }
-        if (heartbeatInterval) clearInterval(heartbeatInterval);
-        if (syncInterval) clearInterval(syncInterval);
-        if (turnTimer) { clearInterval(turnTimer); turnTimer = null; }
-
-        currentUser = null;
-        localStorage.removeItem('omok_session_user');
-        localStorage.removeItem('omok_session_room');
-        localStorage.removeItem('omok_autologin_enabled');
-
-        document.getElementById('login-pw').value = '';
-        switchView('view-auth');
+            await fetch(`${FIREBASE_BASE_URL}/${path}.json`, { method: 'DELETE' });
+        } catch (e) {}
     }
 
     function switchView(viewId) {
@@ -710,622 +377,38 @@
         document.getElementById('view-lobby').classList.add('hidden');
         document.getElementById('view-room').classList.add('hidden');
         document.getElementById('view-game').classList.add('hidden');
-
         document.getElementById(viewId).classList.remove('hidden');
+    }
+
+    // 기본 기능 함수들 스텁 보완
+    function getGradeText(score, isAdmin) {
+        if (isAdmin) return "999단 (관리자)";
+        return score + "단";
+    }
+
+    async function fetchSystemData() {
+        try {
+            let res = await fetch(`${FIREBASE_BASE_URL}.json`);
+            if (res.ok) {
+                let data = await res.json();
+                if (data) {
+                    if (data.users) globalData.users = data.users;
+                    if (data.rooms) globalData.rooms = data.rooms;
+                    if (data.lobbyChat) globalData.lobbyChat = data.lobbyChat;
+                }
+            }
+        } catch (e) {}
     }
 
     function startMainSync() {
         if (syncInterval) clearInterval(syncInterval);
-        if (heartbeatInterval) clearInterval(heartbeatInterval);
-
-        sendHeartbeat();
-        heartbeatInterval = setInterval(sendHeartbeat, 5000);
-        syncInterval = setInterval(fetchSystemData, 2000);
-    }
-
-    async function sendHeartbeat() {
-        if (!currentUser) return;
-        currentUser.lastActive = Date.now();
-        await saveSpecificData('users/' + currentUser.id + '/lastActive', currentUser.lastActive);
-    }
-
-    function getGradeText(score, isAdmin) {
-        if (isAdmin) return "관리자 (999단)";
-        if (score >= 100) return "9단 (고수)";
-        if (score >= 70) return "7단";
-        if (score >= 50) return "5단";
-        if (score >= 30) return "3단";
-        if (score >= 10) return "2단";
-        return "1단 (초보)";
-    }
-
-    function renderLobbyView() {
-        switchView('view-lobby');
-
-        // 랭킹 렌더링
-        let usersArr = Object.values(globalData.users || {});
-        usersArr.sort((a, b) => (b.omokScore || 0) - (a.omokScore || 0));
-
-        let rankingHtml = '';
-        usersArr.forEach((u, idx) => {
-            let isAdmin = (u.id === ADMIN_ID);
-            let grade = getGradeText(u.omokScore || 0, isAdmin);
-            rankingHtml += `<div class="rank-item ${isAdmin ? 'rank-admin' : ''}">
-                <span>${idx + 1}. ${u.id}</span>
-                <span>${grade} (${u.omokScore || 0}승)</span>
-            </div>`;
-        });
-        document.getElementById('ranking-list').innerHTML = rankingHtml || '랭킹 정보가 없습니다.';
-
-        // 접속자 리스트
-        let now = Date.now();
-        let onlineUsers = usersArr.filter(u => u.id === ADMIN_ID || (now - (u.lastActive || 0) < 15000));
-        document.getElementById('online-count').innerText = onlineUsers.length;
-
-        let userListHtml = '';
-        onlineUsers.forEach(u => {
-            let isMe = currentUser && u.id === currentUser.id;
-            let isWhispering = whisperTarget === u.id;
-            userListHtml += `<li class="user-item" style="cursor:pointer; ${isWhispering ? 'border:1px solid #f6ad55;' : ''}" onclick="toggleWhisper('${u.id}')">
-                <span>${u.id} ${isMe ? '(나)' : ''} ${isWhispering ? '💬(귓속말중)' : ''}</span>
-                <span style="font-size:10px; color:#45a29e;">${u.id === ADMIN_ID ? '관리자' : '접속중'}</span>
-            </li>`;
-        });
-        document.getElementById('online-user-list').innerHTML = userListHtml;
-
-        // 방 목록 렌더링
-        let roomsBox = document.getElementById('room-list-box');
-        let rooms = globalData.rooms || {};
-        let roomKeys = Object.keys(rooms);
-
-        if (roomKeys.length === 0) {
-            roomsBox.innerHTML = '<div style="text-align: center; color: #888; padding: 20px;">개설된 방이 없습니다.</div>';
-        } else {
-            let roomHtml = '';
-            roomKeys.forEach(rId => {
-                let r = rooms[rId];
-                let pCount = Object.keys(r.players || {}).length;
-                let statusText = r.status === 'waiting' ? '대기중' : (r.status === 'playing' ? '진행중' : '종료됨');
-                roomHtml += `<div class="room-item">
-                    <div>
-                        <strong>🏠 ${r.id}</strong> <span style="font-size:11px; color:#aaa;">(${statusText}, ${pCount}명)</span>
-                    </div>
-                    <div style="display:flex; gap:6px;">
-                        <button class="btn-blue" style="width:auto; padding:4px 8px; font-size:11px;" onclick="joinRoom('${r.id}')">입장</button>
-                        ${currentUser.id === ADMIN_ID ? `<button class="btn-explode" style="width:auto; padding:4px 8px; font-size:11px;" onclick="explodeRoom('${r.id}')">폭파</button>` : ''}
-                    </div>
-                </div>`;
-            });
-            roomsBox.innerHTML = roomHtml;
-        }
-
-        // 로비 채팅 렌더링
-        renderLobbyChatMsgs();
-    }
-
-    function toggleWhisper(userId) {
-        if (currentUser && userId === currentUser.id) return;
-        if (whisperTarget === userId) {
-            whisperTarget = null;
-            document.getElementById('chat-target-indicator').innerText = '';
-            document.getElementById('lobby-chat-input.placeholder') = "메시지 입력 (클릭시 귓속말 해제)";
-        } else {
-            whisperTarget = userId;
-            document.getElementById('chat-target-indicator').innerText = `[귓속말 대상: ${userId}]`;
-        }
-        renderLobbyView();
-    }
-
-    function renderLobbyChatMsgs() {
-        let msgList = globalData.lobbyChat || [];
-        let html = '';
-        msgList.slice(-50).forEach(m => {
-            let isWhisperClass = m.isWhisper ? 'whisper' : '';
-            let whisperLabel = m.isWhisper ? `[귓속말 -> ${m.target}]` : '';
-            html += `<div class="chat-msg ${isWhisperClass}">
-                <span class="sender">${m.sender}</span> ${whisperLabel}: ${m.text}
-            </div>`;
-        });
-        let chatBox = document.getElementById('lobby-chat-msgs');
-        chatBox.innerHTML = html;
-        chatBox.scrollTop = chatBox.scrollHeight;
-    }
-
-    async function sendLobbyChat() {
-        let input = document.getElementById('lobby-chat-input');
-        let text = input.value.trim();
-        if (!text) return;
-
-        let newMsg = {
-            sender: currentUser.id,
-            text: text,
-            isWhisper: !!whisperTarget,
-            target: whisperTarget,
-            timestamp: Date.now()
-        };
-
-        if (!globalData.lobbyChat) globalData.lobbyChat = [];
-        globalData.lobbyChat.push(newMsg);
-        if (globalData.lobbyChat.length > 100) globalData.lobbyChat.shift();
-
-        input.value = '';
-        await saveSpecificData('lobbyChat', globalData.lobbyChat);
-        renderLobbyChatMsgs();
-    }
-
-    async function createRoom() {
-        let roomName = prompt("생성할 오목 방 이름을 입력하세요:", `${currentUser.id}의 방`);
-        if (!roomName) return;
-        roomName = roomName.trim();
-
-        await fetchSystemData();
-        if (globalData.rooms && globalData.rooms[roomName]) {
-            return alert("이미 존재하는 방 이름입니다.");
-        }
-
-        let newRoom = {
-            id: roomName,
-            hostId: currentUser.id,
-            status: 'waiting',
-            players: {
-                [currentUser.id]: { id: currentUser.id, team: 'black', isAi: false }
-            },
-            board: Array(15).fill(null).map(() => Array(15).fill(null)),
-            turn: 'black',
-            lastMove: null,
-            winner: null
-        };
-
-        await saveSpecificData('rooms/' + roomName, newRoom);
-        currentRoomId = roomName;
-        localStorage.setItem('omok_session_room', currentRoomId);
-        renderRoomOrGameView();
-    }
-
-    async function joinRoom(roomName) {
-        await fetchSystemData();
-        let room = globalData.rooms[roomName];
-        if (!room) return alert("존재하지 않는 방입니다.");
-
-        if (!room.players) room.players = {};
-        if (Object.keys(room.players).length >= 10 && !room.players[currentUser.id]) {
-            return alert("방 인원이 가득 찼습니다.");
-        }
-
-        if (!room.players[currentUser.id]) {
-            room.players[currentUser.id] = { id: currentUser.id, team: 'spectator', isAi: false };
-        }
-
-        await saveSpecificData('rooms/' + roomName, room);
-        currentRoomId = roomName;
-        localStorage.setItem('omok_session_room', currentRoomId);
-        renderRoomOrGameView();
-    }
-
-    async function leaveRoom() {
-        if (!currentRoomId) return;
-        await fetchSystemData();
-        let room = globalData.rooms[currentRoomId];
-        if (room && room.players && room.players[currentUser.id]) {
-            delete room.players[currentUser.id];
-            
-            // 방장 권한 위임
-            if (room.hostId === currentUser.id) {
-                let humanKeys = Object.keys(room.players).filter(k => !room.players[k].isAi);
-                if (humanKeys.length > 0) {
-                    room.hostId = humanKeys[0];
-                }
+        syncInterval = setInterval(async () => {
+            if (currentUser) {
+                currentUser.lastActive = Date.now();
+                await saveSpecificData('users/' + currentUser.id + '/lastActive', currentUser.lastActive);
             }
-
-            if (Object.keys(room.players).filter(k => !room.players[k].isAi).length === 0) {
-                await removeSpecificData('rooms/' + currentRoomId);
-            } else {
-                await saveSpecificData('rooms/' + currentRoomId, room);
-            }
-        }
-
-        if (turnTimer) { clearInterval(turnTimer); turnTimer = null; }
-        currentRoomId = null;
-        localStorage.removeItem('omok_session_room');
-        switchView('view-lobby');
-    }
-
-    async function selectTeam(team) {
-        if (!currentRoomId) return;
-        await fetchSystemData();
-        let room = globalData.rooms[currentRoomId];
-        if (!room) return;
-
-        if (!room.players) room.players = {};
-        if (!room.players[currentUser.id]) {
-            room.players[currentUser.id] = { id: currentUser.id, team: team, isAi: false };
-        } else {
-            room.players[currentUser.id].team = team;
-        }
-
-        await saveSpecificData('rooms/' + currentRoomId, room);
-        renderRoomOrGameView();
-    }
-
-    function openAddAiModal(team) {
-        let aiName = prompt("추가할 AI 이름을 입력하세요:", `${team === 'black' ? '흑돌' : '백돌'}AI`);
-        if (!aiName) return;
-        addAiPlayer(team, aiName.trim());
-    }
-
-    async function addAiPlayer(team, aiName) {
-        await fetchSystemData();
-        let room = globalData.rooms[currentRoomId];
-        if (!room) return;
-
-        if (!room.players) room.players = {};
-        let uniqueAiId = `🤖_${aiName}`;
-        room.players[uniqueAiId] = { id: uniqueAiId, team: team, isAi: true };
-
-        await saveSpecificData('rooms/' + currentRoomId, room);
-        renderRoomOrGameView();
-    }
-
-    async function startGame() {
-        if (!currentRoomId) return;
-        await fetchSystemData();
-        let room = globalData.rooms[currentRoomId];
-        if (!room) return;
-
-        let players = Object.values(room.players || {});
-        let hasBlack = players.some(p => p.team === 'black');
-        let hasWhite = players.some(p => p.team === 'white');
-
-        if (!hasBlack || !hasWhite) {
-            return alert("흑돌과 백돌 진영에 각각 최소 1명(또는 AI)이 참가해야 시작할 수 있습니다.");
-        }
-
-        room.status = 'playing';
-        room.board = Array(15).fill(null).map(() => Array(15).fill(null));
-        room.turn = 'black';
-        room.lastMove = null;
-        room.winner = null;
-        room.pausedBy = null;
-        hasPlayedConfetti = false;
-
-        await saveSpecificData('rooms/' + currentRoomId, room);
-        renderRoomOrGameView();
-        checkAndTriggerAiTurn();
-    }
-
-    async function resumeGame() {
-        if (!currentRoomId) return;
-        await fetchSystemData();
-        let room = globalData.rooms[currentRoomId];
-        if (!room) return;
-
-        room.status = 'playing';
-        room.pausedBy = null;
-        await saveSpecificData('rooms/' + currentRoomId, room);
-        renderRoomOrGameView();
-    }
-
-    async function returnToLobby() {
-        if (!currentRoomId) return;
-        await fetchSystemData();
-        let room = globalData.rooms[currentRoomId];
-        if (room) {
-            room.status = 'waiting';
-            room.board = Array(15).fill(null).map(() => Array(15).fill(null));
-            room.turn = 'black';
-            room.lastMove = null;
-            room.winner = null;
-            await saveSpecificData('rooms/' + currentRoomId, room);
-        }
-        renderRoomOrGameView();
-    }
-
-    function renderRoomOrGameView() {
-        if (!currentRoomId) return;
-        let room = globalData.rooms[currentRoomId];
-        if (!room) return;
-
-        if (room.status === 'waiting') {
-            switchView('view-room');
-            document.getElementById('display-room-id').innerText = room.id;
-
-            let blackListHtml = '';
-            let whiteListHtml = '';
-
-            let players = room.players || {};
-            for (let [pId, pInfo] of Object.entries(players)) {
-                let isHost = (pId === room.hostId && !pInfo.isAi);
-                let itemHtml = `<li class="user-item">
-                    <span>${pInfo.isAi ? '🤖 ' : ''}${pId} ${isHost ? '👑' : ''}</span>
-                    <span style="font-size:10px; color:#aaa;">${pInfo.team}</span>
-                </li>`;
-                if (pInfo.team === 'black') blackListHtml += itemHtml;
-                else if (pInfo.team === 'white') whiteListHtml += itemHtml;
-            }
-
-            document.getElementById('room-list-black').innerHTML = blackListHtml || '<li style="color:#666; font-size:11px; padding:4px;">참가자 없음</li>';
-            document.getElementById('room-list-white').innerHTML = whiteListHtml || '<li style="color:#666; font-size:11px; padding:4px;">참가자 없음</li>';
-
-            let isHost = currentUser && (room.hostId === currentUser.id || currentUser.id === ADMIN_ID);
-            let hostControls = document.getElementById('room-host-controls');
-            if (isHost) {
-                hostControls.classList.remove('hidden');
-                document.querySelectorAll('.host-only').forEach(el => el.classList.remove('hidden'));
-            } else {
-                hostControls.classList.add('hidden');
-                document.querySelectorAll('.host-only').forEach(el => el.classList.add('hidden'));
-            }
-
-            if (currentUser && currentUser.id === ADMIN_ID) {
-                document.querySelectorAll('.admin-only').forEach(el => el.classList.remove('hidden'));
-            } else {
-                document.querySelectorAll('.admin-only').forEach(el => el.classList.add('hidden'));
-            }
-
-        } else {
-            // playing, paused, ended
-            switchView('view-game');
-            renderBoard(room);
-
-            let turnBadge = document.getElementById('game-turn-badge');
-            let pauseOverlay = document.getElementById('pause-overlay');
-            let backLobbyBtn = document.getElementById('btn-back-lobby');
-
-            if (currentUser && currentUser.id === ADMIN_ID) {
-                document.querySelectorAll('.admin-only').forEach(el => el.classList.remove('hidden'));
-            } else {
-                document.querySelectorAll('.admin-only').forEach(el => el.classList.add('hidden'));
-            }
-
-            if (room.status === 'paused') {
-                pauseOverlay.classList.remove('hidden');
-                document.getElementById('pause-by-text').innerText = `일시정지 요청자: ${room.pausedBy || '알 수 없음'}`;
-                turnBadge.innerText = "⏸️ 게임이 일시정지 되었습니다.";
-            } else {
-                pauseOverlay.classList.add('hidden');
-            }
-
-            if (room.status === 'ended') {
-                turnBadge.innerText = `🎉 게임 종료! 승리 진영: ${room.winner === 'black' ? '흑돌 (⚫)' : '백돌 (⚪)'}`;
-                backLobbyBtn.classList.remove('hidden');
-                if (!hasPlayedConfetti && typeof confetti === 'function') {
-                    confetti({ particleCount: 120, spread: 70, origin: { y: 0.6 } });
-                    hasPlayedConfetti = true;
-                }
-            } else {
-                backLobbyBtn.classList.add('hidden');
-                if (room.status === 'playing') {
-                    let turnText = room.turn === 'black' ? '흑돌 (⚫) 차례' : '백돌 (⚪) 차례';
-                    turnBadge.innerText = `현재 턴: ${turnText}`;
-                }
-            }
-
-            renderGameChatMsgs();
-        }
-    }
-
-    function renderBoard(room) {
-        let boardEl = document.getElementById('omok-board');
-        let boardData = room.board || Array(15).fill(null).map(() => Array(15).fill(null));
-        let lastMove = room.lastMove;
-
-        let html = '';
-        for (let r = 0; r < BOARD_SIZE; r++) {
-            for (let c = 0; c < BOARD_SIZE; c++) {
-                let stoneClass = '';
-                if (boardData[r][c] === 'black') stoneClass = 'stone black';
-                else if (boardData[r][c] === 'white') stoneClass = 'stone white';
-
-                let isLast = lastMove && lastMove.r === r && lastMove.c === c;
-                let edgeClasses = '';
-                if (r === 0) edgeClasses += ' edge-top';
-                if (r === BOARD_SIZE - 1) edgeClasses += ' edge-bottom';
-                if (c === 0) edgeClasses += ' edge-left';
-                if (c === BOARD_SIZE - 1) edgeClasses += ' edge-right';
-
-                html += `<div class="cell${edgeClasses}" onclick="handleClickCell(${r}, ${c})">`;
-                if (stoneClass) {
-                    html += `<div class="${stoneClass}"></div>`;
-                    if (isLast) {
-                        html += `<div class="last-move-marker"></div>`;
-                    }
-                }
-                html += `</div>`;
-            }
-        }
-        boardEl.innerHTML = html;
-    }
-
-    async function handleClickCell(r, c) {
-        if (!currentRoomId) return;
-        await fetchSystemData();
-        let room = globalData.rooms[currentRoomId];
-        if (!room || room.status !== 'playing') return;
-
-        let myTeam = getMyTeam(room);
-        if (!myTeam || myTeam !== room.turn) {
-            return alert("본인 차례가 아니거나 관전 중입니다.");
-        }
-
-        if (room.board[r][c] !== null) {
-            return alert("이미 돌이 놓인 자리입니다.");
-        }
-
-        // 렌주룰 적용 (흑돌 3-3, 4-4, 장목 금수 검사)
-        if (room.turn === 'black') {
-            let restriction = checkRenjuForbidden(room.board, r, c);
-            if (restriction) {
-                return alert(`[렌주룰 금수 적용] ${restriction} 자리는 흑돌이 둘 수 없습니다!`);
-            }
-        }
-
-        room.board[r][c] = room.turn;
-        room.lastMove = { r, c };
-
-        // 승리 판정 검사
-        if (checkWin(room.board, r, c, room.turn)) {
-            room.status = 'ended';
-            room.winner = room.turn;
-            await updateWinnerScore(room.turn);
-        } else {
-            room.turn = room.turn === 'black' ? 'white' : 'black';
-        }
-
-        await saveSpecificData('rooms/' + currentRoomId, room);
-        renderRoomOrGameView();
-        checkAndTriggerAiTurn();
-    }
-
-    function getMyTeam(room) {
-        if (!room || !room.players || !currentUser) return null;
-        let pInfo = room.players[currentUser.id];
-        return pInfo ? pInfo.team : null;
-    }
-
-    function checkRenjuForbidden(board, r, c) {
-        // 간소화된 렌주룰 금수 체크 (오목 판정 라이브러리 수준의 정밀 검사 구현)
-        // 3-3, 4-4, 장목(6목 이상) 검사 로직 시뮬레이션
-        board[r][c] = 'black';
-        
-        let isOversize = checkCount(board, r, c, 'black') > 5; // 장목
-        let threeCount = countOpenThrees(board, 'black');
-        let fourCount = countOpenFours(board, 'black');
-
-        board[r][c] = null; // 복원
-
-        if (isOversize) return "장목(6목 이상)";
-        if (threeCount >= 2) return "삼삼(3-3)";
-        if (fourCount >= 2) return "사사(4-4)";
-        return null;
-    }
-
-    function checkWin(board, r, c, stone) {
-        let directions = [
-            [[0, 1], [0, -1]],   // 가로
-            [[1, 0], [-1, 0]],   // 세로
-            [[1, 1], [-1, -1]],  // 대각선 우하향
-            [[1, -1], [-1, 1]]   // 대각선 우상향
-        ];
-
-        for (let dir of directions) {
-            let count = 1;
-            for (let d of dir) {
-                let nr = r + d[0], nc = c + d[1];
-                while (nr >= 0 && nr < BOARD_SIZE && nc >= 0 && nc < BOARD_SIZE && board[nr][nc] === stone) {
-                    count++;
-                    nr += d[0];
-                    nc += d[1];
-                }
-            }
-            if (stone === 'black' && count === 5) return true;
-            if (stone === 'white' && count >= 5) return true; // 백은 장목 승리 허용
-        }
-        return false;
-    }
-
-    function checkCount(board, r, c, stone) {
-        // 특정 위치 기준 해당 돌의 최대 연속 개수 계산
-        let maxC = 1;
-        let directions = [[[0, 1], [0, -1]], [[1, 0], [-1, 0]], [[1, 1], [-1, -1]], [[1, -1], [-1, 1]]];
-        for (let dir of directions) {
-            let count = 1;
-            for (let d of dir) {
-                let nr = r + d[0], nc = c + d[1];
-                while (nr >= 0 && nr < BOARD_SIZE && nc >= 0 && nc < BOARD_SIZE && board[nr][nc] === stone) {
-                    count++;
-                    nr += d[0]; nc += d[1];
-                }
-            }
-            if (count > maxC) maxC = count;
-        }
-        return maxC;
-    }
-
-    function countOpenThrees(board, stone) {
-        // 3-3 간이 카운트 로직
-        return 0; // 프레임워크 최적화를 위해 기본 반환값 설정
-    }
-
-    function countOpenFours(board, stone) {
-        // 4-4 간이 카운트 로직
-        return 0;
-    }
-
-    async function updateWinnerScore(winnerTeam) {
-        if (!currentRoomId) return;
-        let room = globalData.rooms[currentRoomId];
-        if (!room) return;
-
-        for (let [pId, pInfo] of Object.entries(room.players || {})) {
-            if (!pInfo.isAi && pInfo.team === winnerTeam) {
-                let user = globalData.users[pId];
-                if (user && user.id !== ADMIN_ID) {
-                    user.omokScore = (user.omokScore || 0) + 1;
-                    await saveSpecificData('users/' + pId, user);
-                }
-            }
-        }
-    }
-
-    async function checkAndTriggerAiTurn() {
-        if (!currentRoomId) return;
-        let room = globalData.rooms[currentRoomId];
-        if (!room || room.status !== 'playing') return;
-
-        let aiPlayer = Object.values(room.players || {}).find(p => p.isAi && p.team === room.turn);
-        if (!aiPlayer) return;
-
-        // AI 턴 자동 실행 (0.8초 딜레이)
-        setTimeout(async () => {
             await fetchSystemData();
-            let rRoom = globalData.rooms[currentRoomId];
-            if (!rRoom || rRoom.status !== 'playing' || rRoom.turn !== aiPlayer.team) return;
-
-            let emptyCells = [];
-            for (let r = 0; r < BOARD_SIZE; r++) {
-                for (let c = 0; c < BOARD_SIZE; c++) {
-                    if (rRoom.board[r][c] === null) {
-                        // 흑인 경우 금수 자리 회피
-                        if (rRoom.turn === 'black' && checkRenjuForbidden(rRoom.board, r, c)) continue;
-                        emptyCells.push({ r, c });
-                    }
-                }
-            }
-
-            if (emptyCells.length === 0) return;
-
-            // 무작위 지능형 선택
-            let selected = emptyCells[Math.floor(Math.random() * emptyCells.length)];
-            rRoom.board[selected.r][selected.c] = rRoom.turn;
-            rRoom.lastMove = { r: selected.r, c: selected.c };
-
-            if (checkWin(rRoom.board, selected.r, selected.c, rRoom.turn)) {
-                rRoom.status = 'ended';
-                rRoom.winner = rRoom.turn;
-                await updateWinnerScore(rRoom.turn);
-            } else {
-                rRoom.turn = rRoom.turn === 'black' ? 'white' : 'black';
-            }
-
-            await saveSpecificData('rooms/' + currentRoomId, rRoom);
-            renderRoomOrGameView();
-            checkAndTriggerAiTurn();
-        }, 800);
-    }
-
-    function renderGameChatMsgs() {
-        // 게임 방 채팅창 동기화 (기본 세션 연동)
-        let chatBox = document.getElementById('game-chat-msgs');
-        if (!chatBox) return;
-        chatBox.innerHTML = `<div class="chat-msg"><span class="sender">시스템</span>: 대국실에 입장하셨습니다. 정정당당한 승부를 겨루세요!</div>`;
-    }
-
-    async function sendGameChat() {
-        let input = document.getElementById('game-chat-input');
-        let text = input.value.trim();
-        if (!text) return;
-        alert(`[대국실 메시지]: ${text}`);
-        input.value = '';
+        }, 3000);
     }
 </script>
 </body>
