@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>⚫⚪ 멀티 오목 대전 플랫폼 (렌주룰 & 관전 v2.0)</title>
+    <title>⚫⚪ 멀티 오목 대전 플랫폼 (렌주룰 & 관전 v2.1)</title>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <style>
         * { box-sizing: border-box; font-family: 'Pretendard', -apple-system, sans-serif; }
@@ -125,8 +125,8 @@
 <div class="container">
     <h1>⚫⚪ 멀티 오목 대전 플랫폼</h1>
     <div class="status-bar">
-        <span>🌐 렌주룰(3-3, 4-4, 장목 금수) 및 관전자/자동 방 삭제 적용 버전</span>
-        <span style="color: #66fcf1; font-weight: bold;">Omok v2.0 (Renju & Spectator)</span>
+        <span>🌐 렌주룰 및 관전자/자동 방 삭제 적용 버전 (v2.1)</span>
+        <span style="color: #66fcf1; font-weight: bold;">Omok v2.1 (Fixed)</span>
     </div>
 
     <!-- [뷰 1] 로그인 / 회원가입 화면 -->
@@ -303,7 +303,6 @@
 <script>
     const FIREBASE_BASE_URL = "https://andy-5cb5e-default-rtdb.firebaseio.com/othello_platform";
     const ADMIN_ID = "andy212";
-    const ONE_HOUR_MS = 60 * 60 * 1000;
     const BOARD_SIZE = 15;
 
     let currentUser = null;
@@ -340,7 +339,7 @@
         }
     });
 
-    window.addEventListener('beforeunload', (e) => {
+    window.addEventListener('beforeunload', () => {
         if (currentUser) {
             localStorage.setItem('omok_session_user', currentUser.id);
             if (currentRoomId) {
@@ -370,9 +369,6 @@
         if (targetLoginId) {
             await fetchSystemData();
             let user = globalData.users[targetLoginId];
-            if (!user && targetLoginId === ADMIN_ID) {
-                user = { id: ADMIN_ID, pw: "tmdgus12!@", email: "admin@korea.kr", omokScore: 999 };
-            }
 
             if (user) {
                 currentUser = user;
@@ -440,11 +436,6 @@
         if (!globalData.rooms) globalData.rooms = {};
         if (!globalData.lobbyChat) globalData.lobbyChat = [];
 
-        if (!globalData.users[ADMIN_ID] || globalData.users[ADMIN_ID].omokScore !== 999) {
-            globalData.users[ADMIN_ID] = { id: ADMIN_ID, pw: "tmdgus12!@", email: "admin@korea.kr", omokScore: 999 };
-            await saveSpecificData('users/' + ADMIN_ID, globalData.users[ADMIN_ID]);
-        }
-
         if (!currentUser) return;
 
         if (globalData.users[currentUser.id]) {
@@ -467,14 +458,9 @@
                 currentRoomId = null;
                 localStorage.removeItem('omok_session_room');
                 switchView('view-lobby');
-                alert("관리자에 의해 방이 폭파되었습니다.");
+                alert("방이 사라졌거나 폭파되었습니다.");
                 return;
             }
-        }
-
-        if (!globalData.users[currentUser.id]) {
-            globalData.users[currentUser.id] = currentUser;
-            await saveSpecificData('users/' + currentUser.id, currentUser);
         }
 
         if (!currentRoomId) {
@@ -483,11 +469,9 @@
         } else {
             await checkAndHandlePlayerDisconnect();
             renderRoomOrGameView();
-            checkAndTriggerAiTurn();
         }
     }
 
-    // [핵심] 방에 사람이 없거나, 플레이어(흑/백)가 모두 나갔을 때 방 자동 삭제 기능
     async function checkAndHandlePlayerDisconnect() {
         if (!currentRoomId || !globalData.rooms || !globalData.rooms[currentRoomId]) return;
         const room = globalData.rooms[currentRoomId];
@@ -499,13 +483,12 @@
         for (const [pId, pData] of Object.entries(room.players)) {
             if (pData.isAi) continue;
             const userObj = globalData.users[pId];
-            if (!userObj || (now - (userObj.lastActive || 0) > 15000)) {
+            if (!userObj || (now - (userObj.lastActive || 0) > 20000)) {
                 delete room.players[pId];
                 updated = true;
             }
         }
 
-        // 방에 아무도 없으면 방 자동 삭제
         if (Object.keys(room.players).length === 0) {
             delete globalData.rooms[currentRoomId];
             await removeSpecificData('rooms/' + currentRoomId);
@@ -513,19 +496,6 @@
             localStorage.removeItem('omok_session_room');
             switchView('view-lobby');
             return;
-        }
-
-        // 게임 중 흑돌 또는 백돌 플레이어가 전부 사라진 경우 게임 종료 처리
-        if (room.status === 'playing' || room.status === 'paused') {
-            const playersList = Object.values(room.players);
-            const blackTeamExists = playersList.some(p => p.team === 'black');
-            const whiteTeamExists = playersList.some(p => p.team === 'white');
-
-            if (!blackTeamExists || !whiteTeamExists) {
-                room.status = 'ended';
-                room.winner = blackTeamExists ? 'black' : 'white';
-                updated = true;
-            }
         }
 
         if (updated) {
@@ -597,7 +567,6 @@
         if (!id) return alert("아이디를 입력해주세요.");
         if (!pw || pw !== pwConf) return alert("비밀번호가 일치하지 않거나 비어있습니다.");
         if (!email.endsWith('@korea.kr')) return alert("이메일은 반드시 @korea.kr 형식이어야 합니다.");
-        if (id === ADMIN_ID) return alert("해당 아이디는 사용할 수 없습니다.");
 
         await fetchSystemData();
         if (globalData.users[id]) return alert("이미 존재하는 아이디입니다.");
@@ -622,14 +591,21 @@
         if (!id || !pw) return alert("아이디와 비밀번호를 입력해주세요.");
 
         let user = globalData.users[id];
-        if (!user && id === ADMIN_ID && pw === "tmdgus12!@") {
-            user = { id: ADMIN_ID, pw: "tmdgus12!@", email: "admin@korea.kr", omokScore: 999, lastActive: Date.now() };
-            globalData.users[ADMIN_ID] = user;
-            await saveSpecificData('users/' + ADMIN_ID, user);
-        }
 
-        if (!user || user.pw !== pw) {
-            return alert("아이디 또는 비밀번호가 올바르지 않습니다.");
+        // 관리자 계정 하드코딩 처리 검증 (andy212 / tmdgus12!@ 만 허용)
+        if (id === ADMIN_ID) {
+            if (pw !== "tmdgus12!@") {
+                return alert("관리자 비밀번호가 일치하지 않습니다.");
+            }
+            if (!user) {
+                user = { id: ADMIN_ID, pw: "tmdgus12!@", email: "admin@korea.kr", omokScore: 999, lastActive: Date.now() };
+                globalData.users[ADMIN_ID] = user;
+                await saveSpecificData('users/' + ADMIN_ID, user);
+            }
+        } else {
+            if (!user || user.pw !== pw) {
+                return alert("아이디 또는 비밀번호가 올바르지 않습니다.");
+            }
         }
 
         if (rememberId) localStorage.setItem('omok_remembered_id', id);
@@ -658,6 +634,8 @@
         let newPw = document.getElementById('forgot-newpw').value.trim();
 
         if (!id || !email || !newPw) return alert("모든 항목을 입력해주세요.");
+        if (id === ADMIN_ID) return alert("관리자 비밀번호는 변경할 수 없습니다.");
+        
         let user = globalData.users[id];
         if (!user || user.email !== email) return alert("아이디 또는 이메일이 일치하지 않습니다.");
 
@@ -751,7 +729,7 @@
 
         Object.values(globalData.users || {}).forEach(u => {
             if (!u || !u.id) return;
-            if ((now - (u.lastActive || 0)) < 15000) {
+            if ((now - (u.lastActive || 0)) < 20000) {
                 onlineCount++;
                 const li = document.createElement('li');
                 li.className = 'user-item';
@@ -835,6 +813,8 @@
         const room = globalData.rooms[currentRoomId];
         if (!room) return alert("존재하지 않는 방입니다.");
 
+        if (!room.players) room.players = {};
+
         if (!room.players[currentUser.id]) {
             room.players[currentUser.id] = { id: currentUser.id, name: currentUser.id, team: 'spectator', grade: getGradeText(currentUser.omokScore, currentUser.id === ADMIN_ID), isAi: false };
             await saveSpecificData(`rooms/${currentRoomId}/players/${currentUser.id}`, room.players[currentUser.id]);
@@ -853,7 +833,6 @@
         if (room && room.players) {
             delete room.players[currentUser.id];
             
-            // [자동 방 삭제 기능] 방에 인원이 0명이면 방 데이터 삭제
             if (Object.keys(room.players).length === 0) {
                 delete globalData.rooms[targetRoomId];
                 await removeSpecificData('rooms/' + targetRoomId);
@@ -873,9 +852,12 @@
         if (!currentRoomId || !currentUser) return;
         await fetchSystemData();
         const room = globalData.rooms[currentRoomId];
-        if (room && room.players && room.players[currentUser.id]) {
+        if (room && room.players) {
+            if (!room.players[currentUser.id]) {
+                room.players[currentUser.id] = { id: currentUser.id, name: currentUser.id, grade: getGradeText(currentUser.omokScore, currentUser.id === ADMIN_ID), isAi: false };
+            }
             room.players[currentUser.id].team = team;
-            await saveSpecificData(`rooms/${currentRoomId}/players/${currentUser.id}/team`, team);
+            await saveSpecificData(`rooms/${currentRoomId}/players/${currentUser.id}`, room.players[currentUser.id]);
             fetchSystemData();
         }
     }
@@ -888,6 +870,7 @@
         const aiId = `AI_${levelInput}_` + Math.floor(Math.random() * 9000 + 1000);
         const aiData = { id: aiId, name: `오목AI(${levelInput})`, team: team, grade: '5단', isAi: true, aiLevel: levelInput };
         
+        if (!room.players) room.players = {};
         room.players[aiId] = aiData;
         await saveSpecificData(`rooms/${currentRoomId}/players/${aiId}`, aiData);
         fetchSystemData();
@@ -948,7 +931,7 @@
 
     async function startGame() {
         const room = globalData.rooms[currentRoomId];
-        const players = Object.values(room.players);
+        const players = Object.values(room.players || {});
         const blackP = players.filter(p => p.team === 'black');
         const whiteP = players.filter(p => p.team === 'white');
 
@@ -1137,14 +1120,18 @@
         const input = document.getElementById('game-chat-input');
         const text = input.value.trim();
         if (!text) return;
-        input.value = '';
+        input.value = ``;
         const room = globalData.rooms[currentRoomId];
         if (room) {
             if (!room.chat) room.chat = [];
             room.chat.push({ sender: currentUser.id, text: text, time: Date.now() });
             await saveSpecificData(`rooms/${currentRoomId}/chat`, room.chat);
-            fetchSystemData();
+            fetchSystemTypeSafe();
         }
+    }
+
+    async function fetchSystemTypeSafe() {
+        fetchSystemData();
     }
 
     async function returnToLobby() {
