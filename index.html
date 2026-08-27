@@ -2,7 +2,7 @@
 <html lang="ko"><head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>⚫⚪ 멀티 오목 대전 플랫폼 (렌주룰 적용 v1.6)</title>
+    <title>⚫⚪ 멀티 오목 대전 플랫폼 (렌주룰 적용 v1.7)</title>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <style>
         * { box-sizing: border-box; font-family: 'Pretendard', -apple-system, sans-serif; }
@@ -125,7 +125,7 @@
     <h1>⚫⚪ 멀티 오목 대전 플랫폼</h1>
     <div class="status-bar">
         <span>🌐 렌주룰(3-3, 4-4, 장목 금수 적용) 통합 버전</span>
-        <span style="color: #66fcf1; font-weight: bold;">Omok v1.6 (Renju)</span>
+        <span style="color: #66fcf1; font-weight: bold;">Omok v1.7 (Renju)</span>
     </div>
 
     <!-- [뷰 1] 로그인 / 회원가입 화면 -->
@@ -509,7 +509,6 @@
             }
         }
 
-        // [요구사항 2] 방에 사람(플레이어 또는 관전자)이 아무도 없으면 방 자동 삭제
         if (Object.keys(room.players).length === 0) {
             delete globalData.rooms[currentRoomId];
             await removeSpecificData('rooms/' + currentRoomId);
@@ -608,7 +607,7 @@
 
         await fetchSystemData();
 
-        if (globalData.users[id]) return alert("이미 존재하는 아이디입니다. (오셀로 가입 계정 포함)");
+        if (globalData.users[id]) return alert("이미 존재하는 아이디입니다.");
 
         const existingUserWithEmail = Object.values(globalData.users || {}).find(user => user.email === email);
         if (existingUserWithEmail) {
@@ -623,7 +622,7 @@
             return alert("네트워크 오류로 회원가입에 실패했습니다.");
         }
 
-        alert("회원가입 완료! 오셀로 사이트와도 연동되었습니다. 로그인해주세요.");
+        alert("회원가입 완료! 로그인해주세요.");
         switchAuthMode('login');
     }
 
@@ -737,7 +736,7 @@
             fetchSystemData();
         } else {
             await removeSpecificData('users/' + targetId);
-            alert("존재하지 않거나 이미 삭제된 회원입니다. (DB 데이터 정리 완료)");
+            alert("존재하지 않거나 이미 삭제된 회원입니다.");
             fetchSystemData();
         }
     }
@@ -1011,7 +1010,6 @@
         let myScore = (currentUser.id === ADMIN_ID) ? 999 : (currentUser.omokScore || 0);
         let myGradeText = getGradeText(myScore, currentUser.id === ADMIN_ID);
 
-        // [요구사항 1] 게임이 이미 진행 중이거나 대국자가 꽉 찼다면 기본적으로 관전자(spectator)로 참가, 아니면 빈 자리에 참가
         if (!room.players[currentUser.id]) {
             let blackCount = Object.values(room.players).filter(p => p.team === 'black').length;
             let whiteCount = Object.values(room.players).filter(p => p.team === 'white').length;
@@ -1041,7 +1039,6 @@
         if (room && room.players) {
             delete room.players[currentUser.id];
             
-            // [요구사항 2] 방에 남은 사람이 아무도 없으면 DB에서 즉시 방 삭제
             if (Object.keys(room.players).length === 0) {
                 delete globalData.rooms[targetRoomId];
                 await removeSpecificData('rooms/' + targetRoomId);
@@ -1196,6 +1193,7 @@
         room.pausedBy = '';
         room.scoreProcessed = false;
         room.lastMove = null;
+        room.aiThinking = false; // AI 상태 초기화
 
         await saveSpecificData('rooms/' + currentRoomId, room);
         renderRoomOrGameView();
@@ -1244,10 +1242,9 @@
         return false;
     }
 
-    // 렌주룰 금수 판정 함수 오류 수정 (정밀한 삼삼/사사 판정)
     function checkBlackFouls(board, idx, N) {
         let tempBoard = [...board];
-        tempBoard[idx] = 1; // 흑돌 가정
+        tempBoard[idx] = 1;
 
         let r = Math.floor(idx / N);
         let c = idx % N;
@@ -1259,7 +1256,6 @@
             [[1, -1], [-1, 1]]   
         ];
 
-        // 1. 장목(6목 이상) 검사
         for (let dir of directions) {
             let count = 1;
             for (let [dr, dc] of dir) {
@@ -1270,12 +1266,9 @@
                     nc += dc;
                 }
             }
-            if (count > 5) {
-                return "overline"; // 장목 금수
-            }
+            if (count > 5) return "overline";
         }
 
-        // 2. 삼삼(3-3) 및 사사(4-4) 검사
         let openThreeCount = 0;
         let fourCount = 0;
 
@@ -1305,12 +1298,8 @@
             let d2r = last.r + dir[0][0], d2c = last.c + dir[0][1];
             if (d2r >= 0 && d2r < N && d2c >= 0 && d2c < N && tempBoard[d2r * N + d2c] === 0) openCount++;
 
-            if (totalLen === 3 && openCount >= 2) {
-                openThreeCount++;
-            }
-            if (totalLen === 4 && openCount >= 1) {
-                fourCount++;
-            }
+            if (totalLen === 3 && openCount >= 2) openThreeCount++;
+            if (totalLen === 4 && openCount >= 1) fourCount++;
         }
 
         if (openThreeCount >= 2) return "three_three";
@@ -1319,12 +1308,13 @@
         return null;
     }
 
-    // [요구사항 3] AI 오목 돌 튀김 현상 및 턴 꼬임 완벽 수정
+    // [개선된 AI 착점 및 턴 분배 제어 로직 v1.7]
     function checkAndTriggerAiTurn() {
         if (!currentUser || !currentRoomId || !globalData || !globalData.rooms) return;
         const room = globalData.rooms[currentRoomId];
         if (!room || room.status !== 'playing') return;
 
+        // 방장(또는 관리자)만 AI의 턴을 대행해서 계산하고 서버에 반영함
         const isHost = (room.hostId === currentUser.id) || (currentUser.id === ADMIN_ID);
         if (!isHost) return;
 
@@ -1332,8 +1322,8 @@
         const players = Object.values(room.players || {});
         const activePlayer = players.find(p => p.team === currentTeam);
 
+        // 현재 턴의 주인이 AI일 때만 동작
         if (activePlayer && activePlayer.isAi) {
-            // 중복 실행 방지를 위한 플래그 및 타이머 안정화
             if (room.aiThinking) return;
             room.aiThinking = true;
 
@@ -1357,6 +1347,7 @@
                         emptyIndices.push(i);
                     }
                 }
+                
                 if (emptyIndices.length === 0) {
                     freshRoom.aiThinking = false;
                     return;
@@ -1369,6 +1360,7 @@
                     return;
                 }
 
+                // 승리 수 우선 탐색
                 for (let idx of emptyIndices) {
                     let tempBoard = [...board];
                     tempBoard[idx] = aiColor;
@@ -1379,6 +1371,7 @@
                     }
                 }
 
+                // 상대 방어 수 우선 탐색
                 for (let idx of emptyIndices) {
                     let tempBoard = [...board];
                     tempBoard[idx] = humanColor;
@@ -1417,7 +1410,7 @@
 
                 await executeMoveOnServer(freshRoom, bestIdx, aiColor, currentTeam, N);
                 freshRoom.aiThinking = false;
-            }, 800);
+            }, 700);
         }
     }
 
@@ -1483,13 +1476,18 @@
         let N = room.boardSize || BOARD_SIZE;
         const myTeam = room.players[currentUser.id].team;
         
-        // 관전자는 돌을 놓을 수 없음
         if (myTeam === 'spectator') return alert("관전자는 돌을 놓을 수 없습니다!");
 
         const myColor = myTeam === 'black' ? 1 : 2;
 
         if (room.turnTeam !== myTeam) return alert("당신 팀의 차례가 아닙니다!");
         if (room.board[idx] !== 0) return alert("이미 돌이 놓여 있는 자리입니다!");
+
+        // 유저가 둘 때 AI가 동시에 움직이지 못하도록 방지
+        const currentActivePlayer = Object.values(room.players || {}).find(p => p.team === room.turnTeam);
+        if (currentActivePlayer && currentActivePlayer.isAi) {
+            return alert("AI가 생각 중입니다. 잠시만 기다려주세요!");
+        }
 
         if (myColor === 1) {
             let foulType = checkBlackFouls(room.board, idx, N);
@@ -1526,6 +1524,7 @@
         room.turnTeam = nextTeam;
         room.status = gameEnded ? 'ended' : 'playing';
         room.winner = winner;
+        room.aiThinking = false; // 착점 완료 후 AI 생각 상태 해제
 
         if (gameEnded && !room.scoreProcessed) {
             room.scoreProcessed = true;
@@ -1566,7 +1565,10 @@
         const myPlayer = room.players[currentUser.id];
         const myTeam = myPlayer ? myPlayer.team : null;
         const isSpectator = (myTeam === 'spectator');
-        const isMyTurn = room.status === 'playing' && room.turnTeam === myTeam && !myPlayer?.isAi && !isSpectator;
+        
+        const currentActivePlayer = Object.values(room.players || {}).find(p => p.team === room.turnTeam);
+        const isAiTurn = currentActivePlayer && currentActivePlayer.isAi;
+        const isMyTurn = room.status === 'playing' && room.turnTeam === myTeam && !isAiTurn && !isSpectator;
 
         if (room.status === 'playing') {
             if (!turnTimer) {
@@ -1574,18 +1576,19 @@
                 turnTimer = setInterval(async () => {
                     timeLeft--;
                     let teamName = room.turnTeam === 'black' ? '⚫ 흑돌' : '⚪ 백돌';
+                    let aiText = isAiTurn ? ' (🤖 AI 생각 중...)' : '';
                     
                     if (timeLeft <= 5 && timeLeft > 0) {
-                        turnBadge.innerHTML = `${teamName}의 차례 (<span style="color: #ff4d4d; font-weight: 900;">⏳ ${timeLeft}초</span>)`;
+                        turnBadge.innerHTML = `${teamName}${aiText} (<span style="color: #ff4d4d; font-weight: 900;">⏳ ${timeLeft}초</span>)`;
                     } else {
-                        turnBadge.innerHTML = `${teamName}의 차례 (<span style="color: #66fcf1;">⏳ ${timeLeft}초</span>)`;
+                        turnBadge.innerHTML = `${teamName}${aiText} (<span style="color: #66fcf1;">⏳ ${timeLeft}초</span>)`;
                     }
 
                     if (timeLeft <= 0) {
                         clearInterval(turnTimer);
                         turnTimer = null;
                         const isHost = (room.hostId === currentUser.id) || (currentUser.id === ADMIN_ID);
-                        if (isHost) {
+                        if (isHost && !isAiTurn) {
                             await fetchSystemData();
                             let currentRoom = globalData.rooms[currentRoomId];
                             if (!currentRoom || currentRoom.status !== 'playing') return;
@@ -1612,7 +1615,8 @@
         if (room.status === 'playing') {
             let teamName = room.turnTeam === 'black' ? '⚫ 흑돌' : '⚪ 백돌';
             let specNotice = isSpectator ? ' <span style="color:#319795;">(관전 중)</span>' : '';
-            if (!turnTimer) turnBadge.innerHTML = `${teamName}의 차례입니다. (<span style="color: #66fcf1;">⏳ ${timeLeft}초</span>)${specNotice}`;
+            let aiText = isAiTurn ? ' 🤖(AI 생각 중)' : '';
+            if (!turnTimer) turnBadge.innerHTML = `${teamName}${aiText}의 차례입니다. (<span style="color: #66fcf1;">⏳ ${timeLeft}초</span>)${specNotice}`;
         } else if (room.status === 'ended') {
             if (room.winner === 'draw') {
                 turnBadge.innerHTML = '🤝 무승부!';
