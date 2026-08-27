@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>⚫⚪ 멀티 오목 대전 플랫폼 v2.1</title>
+    <title>⚫⚪ 멀티 오목 대전 플랫폼 v2.2</title>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <style>
         * { box-sizing: border-box; font-family: 'Pretendard', -apple-system, sans-serif; }
@@ -12,13 +12,13 @@
             display: flex; justify-content: center; align-items: center; min-height: 100vh;
         }
         .container {
-            width: 100%; max-width: 950px; background: #1f2833; border-radius: 16px;
+            width: 100%; max-width: 1050px; background: #1f2833; border-radius: 16px;
             padding: 20px; box-shadow: 0 0 30px rgba(0, 255, 204, 0.1); border: 1px solid #45a29e;
         }
         h1 { text-align: center; color: #66fcf1; margin-top: 0; margin-bottom: 5px; font-size: 24px; }
         .status-bar { display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #4eacc5; margin-bottom: 15px; background: #121821; padding: 6px 12px; border-radius: 6px; border: 1px solid #2d3748; }
         .card { background: #0b0c10; border-radius: 12px; padding: 20px; margin-bottom: 15px; border: 1px solid #2d3748; }
-        input[type="text"], input[type="password"] {
+        input[type="text"], input[type="password"], select {
             width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #45a29e;
             background: #1f2833; color: #fff; font-size: 14px; outline: none; margin-bottom: 10px;
         }
@@ -30,25 +30,24 @@
         .btn-red { background: #c53030; color: #fff; }
         .btn-main { background: #66fcf1; color: #0b0c10; font-size: 14px; font-weight: 800; }
         .btn-danger { background: #e53e3e; color: #fff; padding: 5px 10px; font-size: 11px; width: auto; }
-        .btn-spectate { background: #319795; color: #fff; }
-        .lobby-grid { display: grid; grid-template-columns: 260px 1fr 240px; gap: 15px; }
-        .panel { background: #121821; border-radius: 10px; padding: 12px; border: 1px solid #2d3748; height: 460px; overflow-y: auto; }
+        .btn-spectate { background: #553c9a; color: #fff; }
+        .lobby-grid { display: grid; grid-template-columns: 260px 1fr 260px; gap: 15px; }
+        .panel { background: #121821; border-radius: 10px; padding: 12px; border: 1px solid #2d3748; height: 480px; overflow-y: auto; }
         .panel h3 { font-size: 14px; color: #66fcf1; margin-top: 0; border-bottom: 1px solid #2d3748; padding-bottom: 8px; }
         .rank-item, .user-item { display: flex; justify-content: space-between; align-items: center; font-size: 12px; padding: 6px 8px; border-bottom: 1px solid #1f2833; }
         .user-list { list-style: none; padding: 0; margin: 0; font-size: 12px; }
         .chat-messages { list-style: none; padding: 0; margin: 0; font-size: 12px; }
         .chat-msg { margin-bottom: 6px; word-break: break-all; }
         .chat-msg span.sender { color: #66fcf1; font-weight: bold; }
-        .room-list-box { max-height: 360px; overflow-y: auto; }
+        .room-list-box { max-height: 380px; overflow-y: auto; }
         .room-item {
             display: flex; justify-content: space-between; align-items: center;
             padding: 10px 14px; background: #1f2833; border-radius: 8px; margin-bottom: 8px; border: 1px solid #2d3748;
         }
         .game-layout { display: grid; grid-template-columns: 1fr 260px; gap: 15px; }
-        .board-wrapper { position: relative; max-width: 480px; margin: 0 auto; width: 100%; }
+        .board-wrapper { position: relative; max-width: 500px; margin: 0 auto; width: 100%; display: flex; justify-content: center; }
         .omok-board {
-            display: grid; grid-template-columns: repeat(15, 1fr); grid-template-rows: repeat(15, 1fr);
-            width: 100%; aspect-ratio: 1; background: #dcb35c;
+            display: grid; background: #dcb35c;
             padding: 15px; border-radius: 6px; border: 3px solid #7c5c1e; gap: 0;
         }
         .cell {
@@ -69,6 +68,13 @@
         .game-chat-panel { background: #121821; border-radius: 8px; border: 1px solid #2d3748; display: flex; flex-direction: column; height: 500px; padding: 10px; }
         .game-chat-msgs { flex: 1; overflow-y: auto; margin-bottom: 10px; font-size: 12px; }
         .auth-box { max-width: 380px; margin: 0 auto; }
+        
+        /* 오셀로 스타일 팀 박스 */
+        .team-box-container { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-top: 15px; }
+        .team-box { background: #121821; border-radius: 10px; padding: 15px; border: 1px solid #2d3748; }
+        .team-box.blue { border-top: 4px solid #2b6cb0; }
+        .team-box.red { border-top: 4px solid #c53030; }
+        .team-box.spec { border-top: 4px solid #553c9a; }
     </style>
 </head>
 <body>
@@ -79,8 +85,8 @@
         <h1 style="margin: 0;">멀티 오목 대전 플랫폼</h1>
     </div>
     <div class="status-bar">
-        <span>🌐 비밀번호 찾기 및 로그인 오류 개선 버전</span>
-        <span style="color: #66fcf1; font-weight: bold;">Omok v2.1</span>
+        <span>🌐 오셀로 스타일 UI 및 맵 크기 선택 기능 적용 완료</span>
+        <span style="color: #66fcf1; font-weight: bold;">Omok v2.2</span>
     </div>
 
     <!-- 로그인 화면 -->
@@ -125,13 +131,13 @@
         </div>
         <div class="lobby-grid">
             <div class="panel">
-                <h3>🏆 오목 랭킹</h3>
+                <h3>🏆 실시간 단수 랭킹</h3>
                 <div id="ranking-list">불러오는 중...</div>
             </div>
             <div class="panel" style="background:#1f2833;">
                 <h3 style="display:flex; justify-content:space-between; align-items:center;">
-                    <span>🚪 오목 방 목록</span>
-                    <button class="btn-main" style="width:auto; padding:4px 8px; font-size:11px;" onclick="createRoom()">방 만들기 +</button>
+                    <span>🚪 게임 방 목록</span>
+                    <button class="btn-main" style="width:auto; padding:4px 8px; font-size:11px;" onclick="createRoomPrompt()">방 만들기 +</button>
                 </h3>
                 <div class="room-list-box" id="room-list-box">
                     <div style="text-align: center; color: #888; padding: 20px;">개설된 방이 없습니다.</div>
@@ -139,7 +145,7 @@
             </div>
             <div class="panel" style="display:flex; flex-direction:column;">
                 <h3>🟢 접속자 (<span id="online-count">0</span>명)</h3>
-                <ul class="user-list" id="online-user-list" style="max-height:110px; overflow-y:auto; margin-bottom:10px;"></ul>
+                <ul class="user-list" id="online-user-list" style="max-height:130px; overflow-y:auto; margin-bottom:10px;"></ul>
                 <h3 style="margin-top:0;">💬 로비 채팅</h3>
                 <ul class="chat-messages" id="lobby-chat-msgs" style="flex:1; overflow-y:auto; margin-bottom:8px;"></ul>
                 <div style="display:flex; gap:5px;">
@@ -150,37 +156,51 @@
         </div>
     </div>
 
-    <!-- 대기실 화면 -->
+    <!-- 대기실 화면 (오셀로 스타일 팀 박스 적용) -->
     <div id="view-room" class="card hidden">
         <div style="display: flex; justify-content: space-between; align-items: center;">
             <h3>🏠 방 이름: <span id="display-room-id" style="color:#66fcf1;"></span></h3>
             <button class="btn-danger" onclick="leaveRoom()">방 나가기 🚪</button>
         </div>
-        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px; margin-top:15px;">
-            <div style="background:#121821; padding:15px; border-radius:8px; border-top:4px solid #333;">
-                <div style="display:flex; justify-content:space-between; align-items:center; color:#fff; font-weight:bold;">
-                    <span>⚫ 흑돌 (선공)</span>
-                    <button class="btn-blue" style="width:auto; padding:4px 10px;" onclick="selectTeam('black')">흑돌 참가</button>
+
+        <div class="team-box-container">
+            <!-- 흑돌 / 파란팀 -->
+            <div class="team-box blue">
+                <div style="display:flex; justify-content:space-between; align-items:center; color:#fff; font-weight:bold; margin-bottom:8px;">
+                    <span>⚫ 파란팀 (흑돌/선공)</span>
+                    <button class="btn-blue" style="width:auto; padding:4px 10px; font-size:11px;" onclick="selectTeam('black')">참가</button>
                 </div>
-                <ul class="user-list" id="room-list-black" style="margin-top:10px;"></ul>
+                <ul class="user-list" id="room-list-black" style="min-height:40px;"></ul>
             </div>
-            <div style="background:#121821; padding:15px; border-radius:8px; border-top:4px solid #fff;">
-                <div style="display:flex; justify-content:space-between; align-items:center; color:#ccc; font-weight:bold;">
-                    <span>⚪ 백돌 (후공)</span>
-                    <button class="btn-red" style="width:auto; padding:4px 10px;" onclick="selectTeam('white')">백돌 참가</button>
+            <!-- 백돌 / 빨간팀 -->
+            <div class="team-box red">
+                <div style="display:flex; justify-content:space-between; align-items:center; color:#fff; font-weight:bold; margin-bottom:8px;">
+                    <span>⚪ 빨간팀 (백돌/후공)</span>
+                    <button class="btn-red" style="width:auto; padding:4px 10px; font-size:11px;" onclick="selectTeam('white')">참가</button>
                 </div>
-                <ul class="user-list" id="room-list-white" style="margin-top:10px;"></ul>
+                <ul class="user-list" id="room-list-white" style="min-height:40px;"></ul>
+            </div>
+            <!-- 관전 -->
+            <div class="team-box spec">
+                <div style="display:flex; justify-content:space-between; align-items:center; color:#fff; font-weight:bold; margin-bottom:8px;">
+                    <span>👀 관전 (<span id="spectator-count">0</span>명)</span>
+                    <button class="btn-spectate" style="width:auto; padding:4px 10px; font-size:11px;" onclick="selectTeam('spectator')">관전 참가</button>
+                </div>
+                <ul class="user-list" id="room-list-spectators" style="min-height:40px; display:flex; flex-wrap:wrap; gap:5px;"></ul>
             </div>
         </div>
-        <div style="background:#121821; padding:12px; border-radius:8px; margin-top:15px; border:1px solid #2d3748;">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                <span style="font-size:13px; color:#319795; font-weight:bold;">👀 관전자 목록 (<span id="spectator-count">0</span>명)</span>
-                <button class="btn-spectate" style="width:auto; padding:4px 12px; font-size:11px;" onclick="selectTeam('spectator')">관전하기</button>
-            </div>
-            <ul class="user-list" id="room-list-spectators" style="display:flex; flex-wrap:wrap; gap:5px; background:transparent;"></ul>
+
+        <div style="margin-top:15px; background:#121821; padding:12px; border-radius:8px; border:1px solid #2d3748; display:flex; align-items:center; justify-content:space-between;">
+            <span style="font-size:13px; color:#66fcf1; font-weight:bold;">🗺️ 맵 크기 설정</span>
+            <select id="room-board-size-select" style="width:200px; margin-bottom:0;" onchange="changeBoardSize(this.value)">
+                <option value="15">15 × 15 (기본)</option>
+                <option value="13">13 × 13 (미니)</option>
+                <option value="19">19 × 19 (대형)</option>
+            </select>
         </div>
+
         <div id="room-host-controls" style="margin-top: 20px; text-align: center;" class="hidden">
-            <button class="btn-main" style="padding: 12px; width: 220px;" onclick="startGame()">🎲 오목 게임 시작하기!</button>
+            <button class="btn-main" style="padding: 12px; width: 240px;" onclick="startGame()">🎲 게임 시작하기!</button>
         </div>
     </div>
 
@@ -192,7 +212,7 @@
         </div>
         <div class="game-layout">
             <div>
-                <div id="game-turn-badge" style="text-align: center; font-size: 18px; font-weight: bold; color: #66fcf1; margin-bottom: 12px; background: #121821; padding: 10px; border-radius: 8px; border: 1px solid #2d3748;">턴 정보</div>
+                <div id="game-turn-badge" style="text-align: center; font-size: 16px; font-weight: bold; color: #66fcf1; margin-bottom: 12px; background: #121821; padding: 10px; border-radius: 8px; border: 1px solid #2d3748;">턴 정보</div>
                 <div class="board-wrapper">
                     <div class="omok-board" id="omok-board"></div>
                 </div>
@@ -211,7 +231,6 @@
 
 <script>
     const FIREBASE_BASE_URL = "https://andy-5cb5e-default-rtdb.firebaseio.com/omok_platform_v3";
-    const BOARD_SIZE = 15;
 
     let currentUser = null;
     let currentRoomId = null;
@@ -244,12 +263,11 @@
         await fetchSystemData();
         let user = globalData.users[id];
         
-        // 기존 DB에 계정이 없거나 비밀번호가 없을 때 자동 생성/로그인 허용 (편의성 보완)
         if (!user) {
             user = { id: id, pw: pw, omokScore: 0 };
             await saveSpecificData('users/' + id, user);
         } else if (user.pw && user.pw !== pw) {
-            return alert("비밀번호가 올바르지 않습니다. 하단의 [비밀번호 찾기/변경]을 이용해 주세요.");
+            return alert("비밀번호가 올바르지 않습니다. [비밀번호 찾기/변경]을 이용해 주세요.");
         }
 
         currentUser = user;
@@ -279,7 +297,6 @@
 
         await fetchSystemData();
         if (!globalData.users[id]) {
-            // 계정이 없으면 새로 만들어줌
             globalData.users[id] = { id: id, pw: newPw, omokScore: 0 };
         } else {
             globalData.users[id].pw = newPw;
@@ -351,13 +368,14 @@
             let pCount = r.players ? Object.keys(r.players).length : 0;
             let sCount = r.spectators ? Object.keys(r.spectators).length : 0;
             let statusText = r.status === 'playing' ? '🔴 대국 중' : '🟢 대기 중';
+            let size = r.boardSize || 15;
 
             html += `
                 <div class="room-item">
                     <div>
                         <strong style="color:#66fcf1;">${rId}</strong> 
                         <span style="font-size:11px; color:#aaa;">(${statusText})</span><br>
-                        <span style="font-size:11px; color:#ccc;">참가: ${pCount}명 / 관전: ${sCount}명</span>
+                        <span style="font-size:11px; color:#ccc;">인원: ${pCount}명 / 관전: ${sCount}명 / ${size}x${size}</span>
                     </div>
                     <div>
                         <button class="btn-blue" style="width:auto; padding:6px 14px; font-size:11px;" onclick="joinRoom('${rId}')">입장</button>
@@ -427,7 +445,7 @@
         heartbeatInterval = setInterval(sendPing, 5000);
     }
 
-    async function createRoom() {
+    async function createRoomPrompt() {
         let rId = prompt("개설할 방 이름을 입력하세요:");
         if (!rId) return;
         rId = rId.trim();
@@ -435,14 +453,16 @@
         await fetchSystemData();
         if (globalData.rooms[rId]) return alert("이미 존재하는 방 이름입니다.");
 
+        let defaultSize = 15;
         let newRoom = {
             id: rId,
             status: 'waiting',
+            boardSize: defaultSize,
             players: {},
             spectators: {
                 [currentUser.id]: { id: currentUser.id }
             },
-            board: Array(BOARD_SIZE).fill().map(() => Array(BOARD_SIZE).fill(null)),
+            board: Array(defaultSize).fill().map(() => Array(defaultSize).fill(null)),
             turn: 'black',
             chat: []
         };
@@ -491,6 +511,26 @@
         renderRoomOrGameView();
     }
 
+    async function changeBoardSize(sizeStr) {
+        if (!currentRoomId) return;
+        let size = parseInt(sizeStr);
+        await fetchSystemData();
+        let room = globalData.rooms[currentRoomId];
+        if (!room) return;
+
+        let players = Object.values(room.players || {});
+        let firstBlack = players.find(p => p.team === 'black');
+        if (!firstBlack || firstBlack.id !== currentUser.id) {
+            return alert("방장(파란팀 흑돌 참가자)만 맵 크기를 변경할 수 있습니다!");
+        }
+
+        room.boardSize = size;
+        room.board = Array(size).fill().map(() => Array(size).fill(null));
+
+        await saveSpecificData('rooms/' + currentRoomId, room);
+        renderRoomOrGameView();
+    }
+
     async function leaveRoom() {
         if (!currentRoomId) return;
         await fetchSystemData();
@@ -526,6 +566,9 @@
             let wList = document.getElementById('room-list-white');
             let sList = document.getElementById('room-list-spectators');
             let sCount = document.getElementById('spectator-count');
+            let sizeSelect = document.getElementById('room-board-size-select');
+
+            if (sizeSelect) sizeSelect.value = room.boardSize || 15;
 
             bList.innerHTML = '';
             wList.innerHTML = '';
@@ -542,7 +585,7 @@
             let specKeys = Object.keys(specs);
             sCount.innerText = specKeys.length;
             for (let sId of specKeys) {
-                sList.innerHTML += `<li class="user-item" style="padding:4px 8px; background:#1f2833;"><span>👀 ${sId}</span></li>`;
+                sList.innerHTML += `<li class="user-item" style="padding:4px 8px; background:#1f2833; border-radius:4px;"><span>👀 ${sId}</span></li>`;
             }
 
             let hostControls = document.getElementById('room-host-controls');
@@ -571,22 +614,30 @@
         let boardEl = document.getElementById('omok-board');
         boardEl.innerHTML = '';
 
-        let boardState = room.board || Array(BOARD_SIZE).fill().map(() => Array(BOARD_SIZE).fill(null));
+        let size = room.boardSize || 15;
+        boardEl.style.gridTemplateColumns = `repeat(${size}, 1fr)`;
+        boardEl.style.gridTemplateRows = `repeat(${size}, 1fr)`;
+        
+        let boardState = room.board || Array(size).fill().map(() => Array(size).fill(null));
         let isSpectator = room.spectators && room.spectators[currentUser.id];
         let turnBadge = document.getElementById('game-turn-badge');
         
-        turnBadge.innerText = `현재 차례: ${room.turn === 'black' ? '⚫ 흑돌' : '⚪ 백돌'}`;
+        turnBadge.innerText = `현재 차례: ${room.turn === 'black' ? '⚫ 파란팀 (흑돌)' : '⚪ 빨간팀 (백돌)'}`;
 
-        for (let r = 0; r < BOARD_SIZE; r++) {
-            for (let c = 0; c < BOARD_SIZE; c++) {
+        let cellSize = size === 19 ? '26px' : size === 13 ? '34px' : '30px';
+
+        for (let r = 0; r < size; r++) {
+            for (let c = 0; c < size; c++) {
                 let cell = document.createElement('div');
                 cell.className = 'cell';
+                cell.style.width = cellSize;
+                cell.style.height = cellSize;
                 if (r === 0) cell.classList.add('edge-top');
-                if (r === BOARD_SIZE - 1) cell.classList.add('edge-bottom');
+                if (r === size - 1) cell.classList.add('edge-bottom');
                 if (c === 0) cell.classList.add('edge-left');
-                if (c === BOARD_SIZE - 1) cell.classList.add('edge-right');
+                if (c === size - 1) cell.classList.add('edge-right');
 
-                let stoneType = boardState[r][c];
+                let stoneType = boardState[r] && boardState[r][c];
                 if (stoneType) {
                     let stone = document.createElement('div');
                     stone.className = `stone ${stoneType}`;
@@ -613,7 +664,7 @@
         let hasWhite = players.some(p => p.team === 'white');
 
         if (!hasBlack || !hasWhite) {
-            return alert("흑돌과 백돌에 각각 1명 이상 참가해야 시작할 수 있습니다!");
+            return alert("파란팀(흑돌)과 빨간팀(백돌)에 각각 1명 이상 참가해야 시작할 수 있습니다!");
         }
 
         room.status = 'playing';
@@ -656,7 +707,6 @@
         if (globalData.lobbyChat.length > 30) globalData.lobbyChat.shift();
 
         saveSpecificData('lobbyChat', globalData.lobbyChat);
-        input.value = andy212 ? '' : '';
         input.value = '';
     }
 
