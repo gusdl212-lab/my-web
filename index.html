@@ -2,7 +2,7 @@
 <html lang="ko"><head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>⚫⚪ 멀티 오목 대전 플랫폼 (렌주룰 적용 v1.7)</title>
+    <title>⚫⚪ 멀티 오목 대전 플랫폼 (렌주룰 적용 v1.8)</title>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <style>
         * { box-sizing: border-box; font-family: 'Pretendard', -apple-system, sans-serif; }
@@ -125,7 +125,7 @@
     <h1>⚫⚪ 멀티 오목 대전 플랫폼</h1>
     <div class="status-bar">
         <span>🌐 렌주룰(3-3, 4-4, 장목 금수 적용) 통합 버전</span>
-        <span style="color: #66fcf1; font-weight: bold;">Omok v1.7 (Renju)</span>
+        <span style="color: #66fcf1; font-weight: bold;">Omok v1.8 (Renju)</span>
     </div>
 
     <!-- [뷰 1] 로그인 / 회원가입 화면 -->
@@ -1193,7 +1193,7 @@
         room.pausedBy = '';
         room.scoreProcessed = false;
         room.lastMove = null;
-        room.aiThinking = false; // AI 상태 초기화
+        room.aiThinking = false;
 
         await saveSpecificData('rooms/' + currentRoomId, room);
         renderRoomOrGameView();
@@ -1308,13 +1308,13 @@
         return null;
     }
 
-    // [개선된 AI 착점 및 턴 분배 제어 로직 v1.7]
+    // [v1.8 완전 개편된 AI 착점 및 턴 제어 로직]
     function checkAndTriggerAiTurn() {
         if (!currentUser || !currentRoomId || !globalData || !globalData.rooms) return;
         const room = globalData.rooms[currentRoomId];
         if (!room || room.status !== 'playing') return;
 
-        // 방장(또는 관리자)만 AI의 턴을 대행해서 계산하고 서버에 반영함
+        // 방장(또는 관리자)만 AI 턴을 계산하여 싱크 유지
         const isHost = (room.hostId === currentUser.id) || (currentUser.id === ADMIN_ID);
         if (!isHost) return;
 
@@ -1322,16 +1322,17 @@
         const players = Object.values(room.players || {});
         const activePlayer = players.find(p => p.team === currentTeam);
 
-        // 현재 턴의 주인이 AI일 때만 동작
         if (activePlayer && activePlayer.isAi) {
             if (room.aiThinking) return;
+            
+            // 즉시 방 데이터에 AI 생각 중 플래그 기록 및 서버 전송으로 중복 실행 원천 차단
             room.aiThinking = true;
+            saveSpecificData('rooms/' + currentRoomId + '/aiThinking', true);
 
             setTimeout(async () => {
                 await fetchSystemData();
                 let freshRoom = globalData.rooms[currentRoomId];
                 if (!freshRoom || freshRoom.status !== 'playing' || freshRoom.turnTeam !== currentTeam) {
-                    if (freshRoom) freshRoom.aiThinking = false;
                     return;
                 }
 
@@ -1349,42 +1350,40 @@
                 }
                 
                 if (emptyIndices.length === 0) {
-                    freshRoom.aiThinking = false;
                     return;
                 }
 
+                // 첫 수 처리 (천원 또는 중앙 부근)
                 let center = Math.floor(N / 2) * N + Math.floor(N / 2);
                 if (emptyIndices.length === board.length && board[center] === 0) {
                     await executeMoveOnServer(freshRoom, center, aiColor, currentTeam, N);
-                    freshRoom.aiThinking = false;
                     return;
                 }
 
-                // 승리 수 우선 탐색
+                // 1순위: AI가 당장 5목을 완성할 수 있는 승리 자리 탐색
                 for (let idx of emptyIndices) {
                     let tempBoard = [...board];
                     tempBoard[idx] = aiColor;
                     if (checkOmokWin(tempBoard, idx, aiColor, N)) {
                         await executeMoveOnServer(freshRoom, idx, aiColor, currentTeam, N);
-                        freshRoom.aiThinking = false;
                         return;
                     }
                 }
 
-                // 상대 방어 수 우선 탐색
+                // 2순위: 상대방(인간)이 다음턴에 5목을 완성하는 것을 막는 방어 자리 탐색
                 for (let idx of emptyIndices) {
                     let tempBoard = [...board];
                     tempBoard[idx] = humanColor;
                     if (checkOmokWin(tempBoard, idx, humanColor, N)) {
-                        await executeMoveOnServer(freshRoom, idx, aiColor, currentTeam, N);
-                        freshRoom.aiThinking = false;
-                        return;
+                        let foulCheck = (aiColor === 1) ? checkBlackFouls(board, idx, N) : null;
+                        if (!foulCheck) {
+                            await executeMoveOnServer(freshRoom, idx, aiColor, currentTeam, N);
+                            return;
+                        }
                     }
                 }
 
-                let bestIdx = emptyIndices[0];
-                let maxScore = -1;
-
+                // 3순위: 기존 돌들로부터 2칸 이내에 있는 빈 자리들만 후보로 엄격히 필터링 (엉뚱한 곳에 튀는 현상 완벽 방지)
                 let candidateIndices = emptyIndices.filter(idx => {
                     let r = Math.floor(idx / N), c = idx % N;
                     for (let dr = -2; dr <= 2; dr++) {
@@ -1398,7 +1397,12 @@
                     return false;
                 });
 
-                if (candidateIndices.length === 0) candidateIndices = emptyIndices;
+                if (candidateIndices.length === 0) {
+                    candidateIndices = emptyIndices;
+                }
+
+                let bestIdx = candidateIndices[0];
+                let maxScore = -1000000;
 
                 for (let idx of candidateIndices) {
                     let score = evaluatePositionForAi(board, idx, aiColor, humanColor, N);
@@ -1409,26 +1413,25 @@
                 }
 
                 await executeMoveOnServer(freshRoom, bestIdx, aiColor, currentTeam, N);
-                freshRoom.aiThinking = false;
-            }, 700);
+            }, 800);
         }
     }
 
     function evaluatePositionForAi(board, idx, aiColor, humanColor, N) {
         let score = 0;
-        score += getPatternScore(board, idx, aiColor, N) * 1.2;
-        score += getPatternScore(board, idx, humanColor, N);
+        score += getPatternScore(board, idx, aiColor, N) * 1.5;
+        score += getPatternScore(board, idx, humanColor, N) * 1.2;
 
         let r = Math.floor(idx / N), c = idx % N;
         let centerDist = Math.abs(r - Math.floor(N / 2)) + Math.abs(c - Math.floor(N / 2));
-        score += (N - centerDist);
+        score += (15 - centerDist); // 중앙에 가까울수록 가산점
 
         return score;
     }
 
     function getPatternScore(board, idx, color, N) {
         let r = Math.floor(idx / N);
-        let c = idx % N;
+        let c = Math.floor(idx % N);
         let totalScore = 0;
 
         const directions = [
@@ -1455,11 +1458,11 @@
                 }
             }
 
-            if (count >= 5) totalScore += 100000;
-            else if (count === 4 && openEnds === 2) totalScore += 10000;
-            else if (count === 4 && openEnds === 1) totalScore += 1000;
-            else if (count === 3 && openEnds === 2) totalScore += 500;
-            else if (count === 3 && openEnds === 1) totalScore += 100;
+            if (count >= 5) totalScore += 500000;
+            else if (count === 4 && openEnds === 2) totalScore += 50000;
+            else if (count === 4 && openEnds === 1) totalScore += 5000;
+            else if (count === 3 && openEnds === 2) totalScore += 1000;
+            else if (count === 3 && openEnds === 1) totalScore += 200;
             else if (count === 2 && openEnds === 2) totalScore += 50;
         }
 
@@ -1476,14 +1479,13 @@
         let N = room.boardSize || BOARD_SIZE;
         const myTeam = room.players[currentUser.id].team;
         
-        if (myTeam === 'spectator') return alert("관전자는 돌을 놓을 수 없습니다!");
+        if (myTeam === 'spectator') return alert("관전자는 관전만 가능합니다!");
 
         const myColor = myTeam === 'black' ? 1 : 2;
 
         if (room.turnTeam !== myTeam) return alert("당신 팀의 차례가 아닙니다!");
         if (room.board[idx] !== 0) return alert("이미 돌이 놓여 있는 자리입니다!");
 
-        // 유저가 둘 때 AI가 동시에 움직이지 못하도록 방지
         const currentActivePlayer = Object.values(room.players || {}).find(p => p.team === room.turnTeam);
         if (currentActivePlayer && currentActivePlayer.isAi) {
             return alert("AI가 생각 중입니다. 잠시만 기다려주세요!");
@@ -1524,7 +1526,7 @@
         room.turnTeam = nextTeam;
         room.status = gameEnded ? 'ended' : 'playing';
         room.winner = winner;
-        room.aiThinking = false; // 착점 완료 후 AI 생각 상태 해제
+        room.aiThinking = false; // 착점 완료 후 AI 생각 플래그 초기화
 
         if (gameEnded && !room.scoreProcessed) {
             room.scoreProcessed = true;
