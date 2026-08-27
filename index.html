@@ -52,11 +52,11 @@
         .rank-admin { color: #ffd700; font-weight: bold; }
 
         .user-list, .chat-messages { list-style: none; padding: 0; margin: 0; font-size: 12px; }
-        .user-item { display: flex; justify-content: space-between; align-items: center; padding: 6px; background: #1f2833; margin-bottom: 4px; border-radius: 4px; }
+        .user-item { display: flex; justify-content: space-between; align-items: center; padding: 6px; background: #1f2833; margin-bottom: 4px; border-radius: 4px; cursor: pointer; }
         .user-item:hover { background: #283342; }
         
         .chat-msg { margin-bottom: 6px; word-break: break-all; }
-        .chat-msg span.sender { color: #66fcf1; font-weight: bold; }
+        .chat-msg span.sender { color: #66fcf1; font-weight: bold; cursor: pointer; }
         .chat-msg.whisper { color: #f6ad55; background: rgba(246, 173, 85, 0.1); padding: 4px 6px; border-radius: 4px; border-left: 3px solid #f6ad55; }
 
         .room-list-box { max-height: 360px; overflow-y: auto; }
@@ -123,10 +123,13 @@
 <body style="visibility: visible;">
 
 <div class="container">
-    <h1>⚫⚪ 멀티 오목 대전 플랫폼</h1>
+    <div style="display: flex; justify-content: center; align-items: center; gap: 10px; margin-bottom: 5px;">
+        <span style="font-size: 22px;">⚫ ⚪</span>
+        <h1 style="margin: 0;">멀티 오목 대전 플랫폼</h1>
+    </div>
     <div class="status-bar">
-        <span>🌐 렌주룰(3-3, 4-4, 장목 금수) 및 관전 모드 지원</span>
-        <span style="color: #66fcf1; font-weight: bold;">Omok v1.6 (Spectator)</span>
+        <span>🌐 렌주룰(3-3, 4-4, 장목 금수) 및 관전 모드 통합 버전</span>
+        <span style="color: #66fcf1; font-weight: bold;">Omok v1.6 (Renju & Spectator)</span>
     </div>
 
     <!-- [뷰 1] 로그인 / 회원가입 화면 -->
@@ -202,9 +205,13 @@
 
             <div class="panel" style="display:flex; flex-direction:column;">
                 <h3>🟢 접속자 (<span id="online-count">0</span>명)</h3>
-                <ul class="user-list" id="online-user-list" style="max-height:120px; overflow-y:auto; margin-bottom:10px;"></ul>
+                <div style="font-size: 10px; color: #a0aec0; margin-bottom: 6px;">💡 클릭시 귓속말 (재클릭시 해제)</div>
+                <ul class="user-list" id="online-user-list" style="max-height:110px; overflow-y:auto; margin-bottom:10px;"></ul>
                 
-                <h3 style="margin-top:0;">💬 로비 채팅 <span id="chat-target-indicator" style="font-size:10px; color:#f6ad55; font-weight:bold;"></span></h3>
+                <h3 style="margin-top:0; display:flex; justify-content:space-between; align-items:center;">
+                    <span>💬 로비 채팅</span>
+                    <span id="chat-target-indicator" style="font-size:10px; color:#f6ad55; font-weight:bold;"></span>
+                </h3>
                 <ul class="chat-messages" id="lobby-chat-msgs" style="flex:1; overflow-y:auto; margin-bottom:8px;"></ul>
                 <div style="display:flex; gap:5px;">
                     <input type="text" id="lobby-chat-input" placeholder="메시지 입력..." style="margin-bottom:0;" onkeypress="if(event.key==='Enter') sendLobbyChat()">
@@ -295,8 +302,9 @@
     let currentRoomId = null;
     let globalData = { users: {}, rooms: {}, lobbyChat: [] };
     let syncInterval = null;
+    let whisperTarget = null;
 
-    // 로비 화면 렌더링 시 관전 버튼 추가
+    // 로비 방 목록 렌더링 (관전 버튼 포함)
     function renderLobbyView() {
         let roomListBox = document.getElementById('room-list-box');
         let rooms = globalData.rooms || {};
@@ -329,9 +337,33 @@
             `;
         }
         roomListBox.innerHTML = html;
+        renderRankingList();
     }
 
-    // 방 들어가기 (관전 모드 분기 처리)
+    // 랭킹 리스트 렌더링
+    function renderRankingList() {
+        let rankingEl = document.getElementById('ranking-list');
+        let users = globalData.users || {};
+        let userArray = Object.values(users).sort((a, b) => (b.omokScore || 0) - (a.omokScore || 0));
+        
+        let html = '';
+        userArray.forEach((u, idx) => {
+            let isAdmin = u.id === ADMIN_ID;
+            let score = u.omokScore || 0;
+            let grade = getGradeText(score);
+            let rankClass = isAdmin ? 'rank-admin' : '';
+            
+            html += `
+                <div class="rank-item ${rankClass}">
+                    <span>${idx + 1}. ${u.id} ${isAdmin ? '👑' : ''}</span>
+                    <span>${grade} (${score}점)</span>
+                </div>
+            `;
+        });
+        rankingEl.innerHTML = html || '<div style="text-align:center; color:#888; padding:10px;">등록된 유저가 없습니다.</div>';
+    }
+
+    // 방 들어가기 (참가 및 관전 모드 분기)
     async function joinRoom(rId, isSpectator = false) {
         await fetchSystemData();
         let room = globalData.rooms[rId];
@@ -342,12 +374,10 @@
 
         if (isSpectator) {
             room.spectators[currentUser.id] = { id: currentUser.id };
-            // 플레이어 목록에 있었다면 제거
             if (room.players && room.players[currentUser.id]) {
                 delete room.players[currentUser.id];
             }
         } else {
-            // 일반 참가 시 빈 자리가 있거나 대기 중일 때만 플레이어로 등록
             if (!room.players) room.players = {};
             let blackCount = Object.values(room.players).filter(p => p.team === 'black').length;
             let whiteCount = Object.values(room.players).filter(p => p.team === 'white').length;
@@ -355,7 +385,6 @@
             let defaultTeam = blackCount <= whiteCount ? 'black' : 'white';
             room.players[currentUser.id] = { id: currentUser.id, team: defaultTeam, isAi: false };
             
-            // 관전자 목록에 있었다면 제거
             if (room.spectators[currentUser.id]) {
                 delete room.spectators[currentUser.id];
             }
@@ -366,7 +395,6 @@
         renderRoomOrGameView();
     }
 
-    // 팀 변경 (플레이어 <-> 관전 전환 가능)
     async function selectTeam(team) {
         if (!currentRoomId) return;
         await fetchSystemData();
@@ -383,7 +411,6 @@
         renderRoomOrGameView();
     }
 
-    // 방 나가기 처리 (관전자도 깔끔하게 제거)
     async function leaveRoom() {
         if (!currentRoomId) return;
         await fetchSystemData();
@@ -397,7 +424,6 @@
                 delete room.spectators[currentUser.id];
             }
 
-            // 방에 남은 사람이 아무도 없으면 방 폭파
             let totalRemaining = Object.keys(room.players || {}).length + Object.keys(room.spectators || {}).length;
             if (totalRemaining === 0) {
                 await removeSpecificData('rooms/' + currentRoomId);
@@ -412,7 +438,6 @@
         fetchSystemData();
     }
 
-    // 뷰 화면 전환 헬퍼
     function switchView(viewId) {
         document.getElementById('view-auth').classList.add('hidden');
         document.getElementById('view-lobby').classList.add('hidden');
@@ -434,7 +459,6 @@
             switchView('view-room');
             document.getElementById('display-room-id').innerText = currentRoomId;
             
-            // 흑/백 플레이어 렌더링
             let bList = document.getElementById('room-list-black');
             let wList = document.getElementById('room-list-white');
             let sList = document.getElementById('room-list-spectators');
@@ -458,7 +482,6 @@
                 sList.innerHTML += `<li class="user-item" style="padding:4px 8px;"><span>👀 ${sId}</span></li>`;
             }
 
-            // 방장 컨트롤 (흑돌 첫 번째 유저가 방장)
             let hostControls = document.getElementById('room-host-controls');
             let firstBlack = Object.values(players).find(p => p.team === 'black');
             if (firstBlack && firstBlack.id === currentUser.id) {
@@ -467,7 +490,6 @@
                 hostControls.classList.add('hidden');
             }
         } else {
-            // 게임 대국 중이거나 일시정지 상태
             switchView('view-game');
             let modeTitle = document.getElementById('game-mode-title');
             if (isSpectator) {
@@ -476,16 +498,19 @@
                 modeTitle.innerText = "🎮 오목 대국 중";
             }
             renderBoard(room);
+            renderGameChat(room);
         }
     }
 
-    // 오목판 렌더링 (관전자는 클릭해도 돌이 안 놓아지도록 방어 코드 추가)
     function renderBoard(room) {
         let boardEl = document.getElementById('omok-board');
         boardEl.innerHTML = '';
 
         let boardState = room.board || Array(BOARD_SIZE).fill().map(() => Array(BOARD_SIZE).fill(null));
         let isSpectator = room.spectators && room.spectators[currentUser.id];
+        let turnBadge = document.getElementById('game-turn-badge');
+        
+        turnBadge.innerText = room.status === 'playing' ? `현재 차례: ${room.turn === 'black' ? '⚫ 흑돌' : '⚪ 백돌'}` : '게임 일시정지 중';
 
         for (let r = 0; r < BOARD_SIZE; r++) {
             for (let c = 0; c < BOARD_SIZE; c++) {
@@ -503,7 +528,6 @@
                     cell.appendChild(stone);
                 }
 
-                // 관전자가 아니며, 내 차례일 때만 클릭 허용
                 if (!isSpectator && room.status === 'playing') {
                     cell.onclick = () => makeMove(r, c);
                 }
@@ -513,7 +537,6 @@
         }
     }
 
-    // 기본 시스템 동기화 시작 루프
     function startMainSync() {
         if (syncInterval) clearInterval(syncInterval);
         syncInterval = setInterval(async () => {
@@ -545,6 +568,7 @@
         if (!currentRoomId) {
             renderLobbyView();
             renderOnlineUsers();
+            renderLobbyChat();
         } else {
             renderRoomOrGameView();
         }
@@ -567,7 +591,6 @@
         await fetch(`${FIREBASE_BASE_URL}/${path}.json`, { method: 'DELETE' });
     }
 
-    // 기타 인증 함수들 기본 유지 (로그인, 회원가입 등)
     function switchAuthMode(mode) {
         document.getElementById('form-login').classList.add('hidden');
         document.getElementById('form-signup').classList.add('hidden');
@@ -616,7 +639,8 @@
             },
             spectators: {},
             board: Array(BOARD_SIZE).fill().map(() => Array(BOARD_SIZE).fill(null)),
-            turn: 'black'
+            turn: 'black',
+            chat: []
         };
 
         await saveSpecificData('rooms/' + rId, newRoom);
@@ -652,7 +676,7 @@
         if (!room || room.status !== 'playing') return;
 
         let myPlayer = room.players[currentUser.id];
-        if (!myPlayer) return; // 관전자는 둘 수 없음
+        if (!myPlayer) return;
 
         if (room.turn !== myPlayer.team) {
             return alert("당신의 차례가 아닙니다!");
@@ -662,7 +686,6 @@
             return alert("이미 돌이 놓인 자리입니다.");
         }
 
-        // 돌 놓기
         room.board[r][c] = myPlayer.team;
         room.turn = (myPlayer.team === 'black') ? 'white' : 'black';
 
@@ -678,10 +701,23 @@
 
         for (let uId of Object.keys(users)) {
             count++;
-            html += `<li class="user-item"><span>${uId}</span> <span style="font-size:10px; color:#4eacc5;">온라인</span></li>`;
+            let isSelected = whisperTarget === uId;
+            let bgStyle = isSelected ? 'background: #2b6cb0;' : '';
+            html += `<li class="user-item" style="${bgStyle}" onclick="setWhisperTarget('${uId}')"><span>${uId}</span> <span style="font-size:10px; color:#4eacc5;">접속중</span></li>`;
         }
         listEl.innerHTML = html;
         document.getElementById('online-count').innerText = count;
+    }
+
+    function setWhisperTarget(uId) {
+        if (whisperTarget === uId) {
+            whisperTarget = null;
+            document.getElementById('chat-target-indicator').innerText = '';
+        } else {
+            whisperTarget = uId;
+            document.getElementById('chat-target-indicator').innerText = `[귓속말 대상: ${uId}]`;
+        }
+        renderOnlineUsers();
     }
 
     function sendLobbyChat() {
@@ -690,11 +726,55 @@
         if (!text || !currentUser) return;
 
         if (!globalData.lobbyChat) globalData.lobbyChat = [];
-        globalData.lobbyChat.push({ sender: currentUser.id, text: text });
+        globalData.lobbyChat.push({ sender: currentUser.id, target: whisperTarget, text: text });
         if (globalData.lobbyChat.length > 30) globalData.lobbyChat.shift();
 
         saveSpecificData('lobbyChat', globalData.lobbyChat);
         input.value = '';
+    }
+
+    function renderLobbyChat() {
+        let chatMsgs = document.getElementById('lobby-chat-msgs');
+        let chats = globalData.lobbyChat || [];
+        let html = '';
+
+        for (let c of chats) {
+            if (c.target && c.target !== currentUser.id && c.sender !== currentUser.id) continue;
+            let isWhisper = !!c.target;
+            let cls = isWhisper ? 'chat-msg whisper' : 'chat-msg';
+            let prefix = isWhisper ? `[귓속말] ` : '';
+            html += `<div class="${cls}"><span class="sender" onclick="setWhisperTarget('${c.sender}')">${c.sender}</span>: ${prefix}${c.text}</div>`;
+        }
+        chatMsgs.innerHTML = html;
+        chatMsgs.scrollTop = chatMsgs.scrollHeight;
+    }
+
+    function sendGameChat() {
+        let input = document.getElementById('game-chat-input');
+        let text = input.value.trim();
+        if (!text || !currentRoomId || !currentUser) return;
+
+        let room = globalData.rooms[currentRoomId];
+        if (!room) return;
+        if (!room.chat) room.chat = [];
+
+        room.chat.push({ sender: currentUser.id, text: text });
+        if (room.chat.length > 30) room.chat.shift();
+
+        saveSpecificData('rooms/' + currentRoomId + '/chat', room.chat);
+        input.value = '';
+    }
+
+    function renderGameChat(room) {
+        let chatMsgs = document.getElementById('game-chat-msgs');
+        let chats = room.chat || [];
+        let html = '';
+
+        for (let c of chats) {
+            html += `<div class="chat-msg"><span class="sender">${c.sender}</span>: ${c.text}</div>`;
+        }
+        chatMsgs.innerHTML = html;
+        chatMsgs.scrollTop = chatMsgs.scrollHeight;
     }
 </script>
 </body>
