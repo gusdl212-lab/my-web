@@ -45,7 +45,6 @@
         .panel h3 { font-size: 14px; color: #66fcf1; margin-top: 0; border-bottom: 1px solid #2d3748; padding-bottom: 8px; }
 
         .rank-item { display: flex; justify-content: space-between; font-size: 12px; padding: 6px 8px; border-bottom: 1px solid #1f2833; align-items: center; }
-        .rank-admin { color: #ffd700; font-weight: bold; }
 
         .user-list, .chat-messages { list-style: none; padding: 0; margin: 0; font-size: 12px; }
         .user-item { display: flex; justify-content: space-between; align-items: center; padding: 6px; background: #1f2833; margin-bottom: 4px; border-radius: 4px; cursor: pointer; }
@@ -277,7 +276,6 @@
 
 <script>
     const FIREBASE_BASE_URL = "https://andy-5cb5e-default-rtdb.firebaseio.com/othello_platform";
-    const ADMIN_ID = "andy212";
     const BOARD_SIZE = 15;
 
     let currentUser = null;
@@ -326,7 +324,7 @@
         renderRankingList();
     }
 
-    // 랭킹 리스트 렌더링
+    // 랭킹 리스트 렌더링 (관리자 강제 점수/마스터 표시 제거)
     function renderRankingList() {
         let rankingEl = document.getElementById('ranking-list');
         if (!rankingEl) return;
@@ -341,14 +339,12 @@
 
         let html = '';
         userArray.forEach((u, idx) => {
-            let isAdmin = u.id === ADMIN_ID;
             let score = u.omokScore || 0;
             let grade = getGradeText(score);
-            let rankClass = isAdmin ? 'rank-admin' : '';
             
             html += `
-                <div class="rank-item ${rankClass}">
-                    <span>${idx + 1}. ${u.id} ${isAdmin ? '👑' : ''}</span>
+                <div class="rank-item">
+                    <span>${idx + 1}. ${u.id}</span>
                     <span>${grade} (${score}점)</span>
                 </div>
             `;
@@ -586,7 +582,6 @@
             console.error("데이터 동기화 오류:", e);
         }
 
-        // 로그인된 상태가 아니면 아래 렌더링 로직을 절대 실행하지 않음 (방어 코드)
         if (!currentUser) return;
 
         if (globalData.users[currentUser.id]) {
@@ -607,7 +602,6 @@
     }
 
     function getGradeText(score) {
-        if (score >= 999) return "마스터(관리자)";
         return `${Math.floor(score / 100) + 1}단`;
     }
 
@@ -761,7 +755,7 @@
         let html = '';
 
         for (let c of chats) {
-            if (!c || !c.sender) continue; // 데이터 무결성 체크
+            if (!c || !c.sender) continue;
             if (c.target && c.target !== currentUser.id && c.sender !== currentUser.id) continue;
             let isWhisper = !!c.target;
             let cls = isWhisper ? 'chat-msg whisper' : 'chat-msg';
@@ -802,7 +796,6 @@
         chatMsgs.scrollTop = chatMsgs.scrollHeight;
     }
 
-    // 자동 로그인 세션 복구 처리
     window.onload = async () => {
         let savedUser = localStorage.getItem('omok_session_user');
         let savedRoom = localStorage.getItem('omok_session_room');
