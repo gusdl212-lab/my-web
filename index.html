@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>⚫⚪ 멀티 오목 대전 플랫폼 (렌주룰 & 관전 모드 v1.6)</title>
+    <title>⚫⚪ 멀티 오목 대전 플랫폼 (오셀로 스타일 관전 모드)</title>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <style>
         * { box-sizing: border-box; font-family: 'Pretendard', -apple-system, sans-serif; }
@@ -47,8 +47,7 @@
         .rank-item { display: flex; justify-content: space-between; font-size: 12px; padding: 6px 8px; border-bottom: 1px solid #1f2833; align-items: center; }
 
         .user-list, .chat-messages { list-style: none; padding: 0; margin: 0; font-size: 12px; }
-        .user-item { display: flex; justify-content: space-between; align-items: center; padding: 6px; background: #1f2833; margin-bottom: 4px; border-radius: 4px; cursor: pointer; }
-        .user-item:hover { background: #283342; }
+        .user-item { display: flex; justify-content: space-between; align-items: center; padding: 6px; background: #1f2833; margin-bottom: 4px; border-radius: 4px; }
         
         .chat-msg { margin-bottom: 6px; word-break: break-all; }
         .chat-msg span.sender { color: #66fcf1; font-weight: bold; cursor: pointer; }
@@ -96,19 +95,12 @@
         .stone.white { background: radial-gradient(circle at 35% 35%, #fff, #bbb); border: 1px solid #888; }
 
         .hidden { display: none !important; }
-
         .game-chat-panel { background: #121821; border-radius: 8px; border: 1px solid #2d3748; display: flex; flex-direction: column; height: 500px; padding: 10px; }
         .game-chat-msgs { flex: 1; overflow-y: auto; margin-bottom: 10px; font-size: 12px; }
         .auth-box { max-width: 380px; margin: 0 auto; }
-        
-        .checkbox-group {
-            display: flex; justify-content: space-between; align-items: center;
-            font-size: 12px; color: #a0aec0; margin-bottom: 12px;
-        }
-        .checkbox-group label { display: flex; align-items: center; gap: 5px; cursor: pointer; }
     </style>
 </head>
-<body style="visibility: visible;">
+<body>
 
 <div class="container">
     <div style="display: flex; justify-content: center; align-items: center; gap: 10px; margin-bottom: 5px;">
@@ -116,8 +108,8 @@
         <h1 style="margin: 0;">멀티 오목 대전 플랫폼</h1>
     </div>
     <div class="status-bar">
-        <span>🌐 렌주룰(3-3, 4-4, 장목 금수) 및 관전 모드 지원</span>
-        <span style="color: #66fcf1; font-weight: bold;">Omok v1.6 (Spectator)</span>
+        <span>🌐 렌주룰 및 완벽한 오셀로식 관전 모드 지원</span>
+        <span style="color: #66fcf1; font-weight: bold;">Omok v1.7 (Spectator)</span>
     </div>
 
     <!-- [뷰 1] 로그인 / 회원가입 화면 -->
@@ -126,15 +118,9 @@
             <h3 style="text-align:center; color:#66fcf1;">🔐 로그인</h3>
             <input type="text" id="login-id" placeholder="아이디를 입력하세요" maxlength="20" onkeypress="if(event.key==='Enter') handleLogin()">
             <input type="password" id="login-pw" placeholder="비밀번호를 입력하세요" maxlength="20" onkeypress="if(event.key==='Enter') handleLogin()">
-            
-            <div class="checkbox-group">
-                <label><input type="checkbox" id="chk-remember"> 아이디 저장</label>
-            </div>
-
             <button class="btn-main" onclick="handleLogin()">로그인 🚀</button>
-            <div style="display:flex; justify-content:space-between; font-size:12px; margin-top:10px;">
+            <div style="text-align:center; font-size:12px; margin-top:10px;">
                 <span style="color:#aaa; cursor:pointer;" onclick="switchAuthMode('signup')">회원가입하기</span>
-                <span style="color:#aaa; cursor:pointer;" onclick="switchAuthMode('forgot')">비밀번호 찾기</span>
             </div>
         </div>
 
@@ -142,20 +128,7 @@
             <h3 style="text-align:center; color:#66fcf1;">📝 회원가입</h3>
             <input type="text" id="signup-id" placeholder="사용할 아이디" maxlength="20">
             <input type="password" id="signup-pw" placeholder="비밀번호" maxlength="20">
-            <input type="password" id="signup-pw-confirm" placeholder="비밀번호 확인" maxlength="20">
-            <input type="text" id="signup-email" placeholder="이메일 입력 (@korea.kr 필수)" maxlength="40">
             <button class="btn-main" onclick="handleSignup()">가입 완료 ✨</button>
-            <div style="text-align:center; font-size:12px; margin-top:10px;">
-                <span style="color:#aaa; cursor:pointer;" onclick="switchAuthMode('login')">돌아가기</span>
-            </div>
-        </div>
-
-        <div id="form-forgot" class="hidden">
-            <h3 style="text-align:center; color:#66fcf1;">🔑 비밀번호 찾기</h3>
-            <input type="text" id="forgot-id" placeholder="아이디 입력" maxlength="20">
-            <input type="text" id="forgot-email" placeholder="가입한 이메일 (@korea.kr)" maxlength="40">
-            <input type="password" id="forgot-newpw" placeholder="새 비밀번호 입력" maxlength="20">
-            <button class="btn-main" onclick="handlePasswordReset()">비밀번호 변경 🔄</button>
             <div style="text-align:center; font-size:12px; margin-top:10px;">
                 <span style="color:#aaa; cursor:pointer;" onclick="switchAuthMode('login')">돌아가기</span>
             </div>
@@ -168,7 +141,7 @@
             <div>
                 [오목 로비] 환영합니다, <strong id="my-profile-name"></strong>님 (<span id="my-profile-grade" style="color:#ffd700;">1단</span>)
             </div>
-            <div style="display:flex; gap:8px; align-items:center;">
+            <div>
                 <button class="btn-danger" onclick="handleLogout()">로그아웃 🚪</button>
             </div>
         </div>
@@ -191,13 +164,9 @@
 
             <div class="panel" style="display:flex; flex-direction:column;">
                 <h3>🟢 접속자 (<span id="online-count">0</span>명)</h3>
-                <div style="font-size: 10px; color: #a0aec0; margin-bottom: 6px;">💡 클릭시 귓속말 (재클릭시 해제)</div>
                 <ul class="user-list" id="online-user-list" style="max-height:110px; overflow-y:auto; margin-bottom:10px;"></ul>
                 
-                <h3 style="margin-top:0; display:flex; justify-content:space-between; align-items:center;">
-                    <span>💬 로비 채팅</span>
-                    <span id="chat-target-indicator" style="font-size:10px; color:#f6ad55; font-weight:bold;"></span>
-                </h3>
+                <h3 style="margin-top:0;">💬 로비 채팅</h3>
                 <ul class="chat-messages" id="lobby-chat-msgs" style="flex:1; overflow-y:auto; margin-bottom:8px;"></ul>
                 <div style="display:flex; gap:5px;">
                     <input type="text" id="lobby-chat-input" placeholder="메시지 입력..." style="margin-bottom:0;" onkeypress="if(event.key==='Enter') sendLobbyChat()">
@@ -207,12 +176,10 @@
         </div>
     </div>
 
-    <!-- [뷰 3] 방 대기실 -->
+    <!-- [뷰 3] 방 대기실 (오셀로 스타일 참가/관전 선택) -->
     <div id="view-room" class="card hidden">
         <div style="display: flex; justify-content: space-between; align-items: center;">
-            <div style="display:flex; align-items:center; gap:10px;">
-                <h3>🏠 오목 방 이름: <span id="display-room-id" style="color:#66fcf1;"></span></h3>
-            </div>
+            <h3>🏠 오목 방 이름: <span id="display-room-id" style="color:#66fcf1;"></span></h3>
             <button class="btn-danger" onclick="leaveRoom()">방 나가기 🚪</button>
         </div>
 
@@ -220,22 +187,25 @@
             <div style="background:#121821; padding:15px; border-radius:8px; border-top:4px solid #333;">
                 <div style="display:flex; justify-content:space-between; align-items:center; color:#fff; font-weight:bold;">
                     <span>⚫ 흑돌 (선공)</span>
-                    <button class="btn-blue" style="width:auto; padding:4px 10px;" onclick="selectTeam('black')">참가</button>
+                    <button class="btn-blue" style="width:auto; padding:4px 10px;" onclick="selectTeam('black')">흑돌 참가</button>
                 </div>
                 <ul class="user-list" id="room-list-black" style="margin-top:10px;"></ul>
             </div>
             <div style="background:#121821; padding:15px; border-radius:8px; border-top:4px solid #fff;">
                 <div style="display:flex; justify-content:space-between; align-items:center; color:#ccc; font-weight:bold;">
                     <span>⚪ 백돌 (후공)</span>
-                    <button class="btn-red" style="width:auto; padding:4px 10px;" onclick="selectTeam('white')">참가</button>
+                    <button class="btn-red" style="width:auto; padding:4px 10px;" onclick="selectTeam('white')">백돌 참가</button>
                 </div>
                 <ul class="user-list" id="room-list-white" style="margin-top:10px;"></ul>
             </div>
         </div>
 
         <div style="background:#121821; padding:12px; border-radius:8px; margin-top:15px; border:1px solid #2d3748;">
-            <span style="font-size:13px; color:#319795; font-weight:bold;">👀 관전자 목록 (<span id="spectator-count">0</span>명)</span>
-            <ul class="user-list" id="room-list-spectators" style="margin-top:8px; display:flex; flex-wrap:wrap; gap:5px; background:transparent;"></ul>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                <span style="font-size:13px; color:#319795; font-weight:bold;">👀 관전자 목록 (<span id="spectator-count">0</span>명)</span>
+                <button class="btn-spectate" style="width:auto; padding:4px 12px; font-size:11px;" onclick="selectTeam('spectator')">관전하기</button>
+            </div>
+            <ul class="user-list" id="room-list-spectators" style="display:flex; flex-wrap:wrap; gap:5px; background:transparent;"></ul>
         </div>
 
         <div id="room-host-controls" style="margin-top: 20px; text-align: center;" class="hidden">
@@ -246,9 +216,7 @@
     <!-- [뷰 4] 게임 플레이 / 관전 화면 -->
     <div id="view-game" class="card hidden">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-            <div style="display:flex; align-items:center; gap:10px;">
-                <div id="game-mode-title" style="font-size: 14px; font-weight: bold; color: #66fcf1;">🎮 오목 대국 중</div>
-            </div>
+            <div id="game-mode-title" style="font-size: 14px; font-weight: bold; color: #66fcf1;">🎮 오목 대국 중</div>
             <button class="btn-danger" onclick="leaveRoom()">나가기 🚪</button>
         </div>
 
@@ -282,17 +250,15 @@
     let globalData = { users: {}, rooms: {}, lobbyChat: [], online: {} };
     let syncInterval = null;
     let heartbeatInterval = null;
-    let whisperTarget = null;
 
-    // 로비 방 목록 렌더링
     function renderLobbyView() {
         let roomListBox = document.getElementById('room-list-box');
         if (!roomListBox) return;
         
         let rooms = globalData.rooms || {};
         let html = '';
-
         let roomKeys = Object.keys(rooms);
+
         if (roomKeys.length === 0) {
             roomListBox.innerHTML = '<div style="text-align: center; color: #888; padding: 20px;">개설된 방이 없습니다.</div>';
             renderRankingList();
@@ -312,9 +278,8 @@
                         <span style="font-size:11px; color:#aaa;">(${statusText})</span><br>
                         <span style="font-size:11px; color:#ccc;">참가자: ${pCount}명 / 관전자: ${sCount}명</span>
                     </div>
-                    <div style="display:flex; gap:5px;">
-                        <button class="btn-blue" style="width:auto; padding:5px 10px; font-size:11px;" onclick="joinRoom('${rId}', false)">참가</button>
-                        <button class="btn-spectate" style="width:auto; padding:5px 10px; font-size:11px;" onclick="joinRoom('${rId}', true)">관전</button>
+                    <div>
+                        <button class="btn-blue" style="width:auto; padding:6px 14px; font-size:11px;" onclick="joinRoom('${rId}')">입장</button>
                     </div>
                 </div>
             `;
@@ -323,7 +288,6 @@
         renderRankingList();
     }
 
-    // 랭킹 리스트 렌더링
     function renderRankingList() {
         let rankingEl = document.getElementById('ranking-list');
         if (!rankingEl) return;
@@ -339,19 +303,16 @@
         let html = '';
         userArray.forEach((u, idx) => {
             let score = u.omokScore || 0;
-            let grade = getGradeText(score);
-            
             html += `
                 <div class="rank-item">
                     <span>${idx + 1}. ${u.id}</span>
-                    <span>${grade} (${score}점)</span>
+                    <span>${Math.floor(score / 100) + 1}단 (${score}점)</span>
                 </div>
             `;
         });
         rankingEl.innerHTML = html;
     }
 
-    // 실제 접속 중인 유저만 필터링하는 로직
     function renderOnlineUsers() {
         let listEl = document.getElementById('online-user-list');
         if (!listEl) return;
@@ -364,9 +325,7 @@
         for (let [uId, lastSeen] of Object.entries(onlineObj)) {
             if (now - lastSeen < 10000) {
                 count++;
-                let isSelected = whisperTarget === uId;
-                let bgStyle = isSelected ? 'background: #2b6cb0;' : '';
-                html += `<li class="user-item" style="${bgStyle}" onclick="setWhisperTarget('${uId}')"><span>${uId}</span> <span style="font-size:10px; color:#4eacc5;">온라인</span></li>`;
+                html += `<li class="user-item"><span>${uId}</span> <span style="font-size:10px; color:#4eacc5;">온라인</span></li>`;
             }
         }
         listEl.innerHTML = html;
@@ -374,7 +333,6 @@
         if (countEl) countEl.innerText = count;
     }
 
-    // 하트비트 전송
     function startHeartbeat() {
         if (!currentUser) return;
         if (heartbeatInterval) clearInterval(heartbeatInterval);
@@ -391,30 +349,17 @@
         heartbeatInterval = setInterval(sendPing, 5000);
     }
 
-    async function joinRoom(rId, isSpectator = false) {
+    async function joinRoom(rId) {
         await fetchSystemData();
         let room = globalData.rooms[rId];
         if (!room) return alert("존재하지 않는 방입니다.");
 
         currentRoomId = rId;
         if (!room.spectators) room.spectators = {};
-
-        if (isSpectator) {
+        
+        // 처음 입장 시 기본적으로 관전자로 등록 (오셀로 방식)
+        if (!room.players || !room.players[currentUser.id]) {
             room.spectators[currentUser.id] = { id: currentUser.id };
-            if (room.players && room.players[currentUser.id]) {
-                delete room.players[currentUser.id];
-            }
-        } else {
-            if (!room.players) room.players = {};
-            let blackCount = Object.values(room.players).filter(p => p.team === 'black').length;
-            let whiteCount = Object.values(room.players).filter(p => p.team === 'white').length;
-            
-            let defaultTeam = blackCount <= whiteCount ? 'black' : 'white';
-            room.players[currentUser.id] = { id: currentUser.id, team: defaultTeam, isAi: false };
-            
-            if (room.spectators[currentUser.id]) {
-                delete room.spectators[currentUser.id];
-            }
         }
 
         await saveSpecificData('rooms/' + rId, room);
@@ -428,11 +373,18 @@
         if (!room) return;
 
         if (!room.players) room.players = {};
-        if (room.spectators && room.spectators[currentUser.id]) {
-            delete room.spectators[currentUser.id];
+        if (!room.spectators) room.spectators = {};
+
+        // 기존 위치에서 제거
+        delete room.players[currentUser.id];
+        delete room.spectators[currentUser.id];
+
+        if (team === 'spectator') {
+            room.spectators[currentUser.id] = { id: currentUser.id };
+        } else {
+            room.players[currentUser.id] = { id: currentUser.id, team: team, isAi: false };
         }
 
-        room.players[currentUser.id] = { id: currentUser.id, team: team, isAi: false };
         await saveSpecificData('rooms/' + currentRoomId, room);
         renderRoomOrGameView();
     }
@@ -472,8 +424,6 @@
         let room = globalData.rooms[currentRoomId];
         if (!room) return;
 
-        let isSpectator = room.spectators && room.spectators[currentUser.id];
-
         if (room.status === 'waiting') {
             switchView('view-room');
             document.getElementById('display-room-id').innerText = currentRoomId;
@@ -498,7 +448,7 @@
             let specKeys = Object.keys(specs);
             sCount.innerText = specKeys.length;
             for (let sId of specKeys) {
-                sList.innerHTML += `<li class="user-item" style="padding:4px 8px;"><span>👀 ${sId}</span></li>`;
+                sList.innerHTML += `<li class="user-item" style="padding:4px 8px; background:#1f2833;"><span>👀 ${sId}</span></li>`;
             }
 
             let hostControls = document.getElementById('room-host-controls');
@@ -511,8 +461,10 @@
         } else {
             switchView('view-game');
             let modeTitle = document.getElementById('game-mode-title');
+            let isSpectator = room.spectators && room.spectators[currentUser.id];
+            
             if (isSpectator) {
-                modeTitle.innerText = "👀 오목 관전 중 (읽기 전용)";
+                modeTitle.innerText = "👀 오목 관전 모드 (읽기 전용)";
             } else {
                 modeTitle.innerText = "🎮 오목 대국 중";
             }
@@ -547,6 +499,7 @@
                     cell.appendChild(stone);
                 }
 
+                // 관전자는 돌을 놓을 수 없음 (클릭 차단)
                 if (!isSpectator && room.status === 'playing') {
                     cell.onclick = () => makeMove(r, c);
                 }
@@ -586,7 +539,7 @@
             let nameEl = document.getElementById('my-profile-name');
             let gradeEl = document.getElementById('my-profile-grade');
             if (nameEl) nameEl.innerText = currentUser.id;
-            if (gradeEl) gradeEl.innerText = getGradeText(currentUser.omokScore);
+            if (gradeEl) gradeEl.innerText = `${Math.floor(currentUser.omokScore / 100) + 1}단`;
         }
 
         if (!currentRoomId) {
@@ -596,10 +549,6 @@
         } else {
             renderRoomOrGameView();
         }
-    }
-
-    function getGradeText(score) {
-        return `${Math.floor(score / 100) + 1}단`;
     }
 
     async function saveSpecificData(path, data) {
@@ -617,10 +566,8 @@
     function switchAuthMode(mode) {
         document.getElementById('form-login').classList.add('hidden');
         document.getElementById('form-signup').classList.add('hidden');
-        document.getElementById('form-forgot').classList.add('hidden');
         if (mode === 'login') document.getElementById('form-login').classList.remove('hidden');
         if (mode === 'signup') document.getElementById('form-signup').classList.remove('hidden');
-        if (mode === 'forgot') document.getElementById('form-forgot').classList.remove('hidden');
     }
 
     async function handleLogin() {
@@ -636,6 +583,20 @@
         switchView('view-lobby');
         startMainSync();
         startHeartbeat();
+    }
+
+    async function handleSignup() {
+        let id = document.getElementById('signup-id').value.trim();
+        let pw = document.getElementById('signup-pw').value.trim();
+        if (!id || !pw) return alert("아이디와 비밀번호를 입력해주세요.");
+
+        await fetchSystemData();
+        if (globalData.users[id]) return alert("이미 존재하는 아이디입니다.");
+
+        let newUser = { id: id, pw: pw, omokScore: 0 };
+        await saveSpecificData('users/' + id, newUser);
+        alert("회원가입 완료! 로그인해주세요.");
+        switchAuthMode('login');
     }
 
     function handleLogout() {
@@ -715,26 +676,13 @@
         renderRoomOrGameView();
     }
 
-    function setWhisperTarget(uId) {
-        if (whisperTarget === uId) {
-            whisperTarget = null;
-            let indicator = document.getElementById('chat-target-indicator');
-            if (indicator) indicator.innerText = '';
-        } else {
-            whisperTarget = uId;
-            let indicator = document.getElementById('chat-target-indicator');
-            if (indicator) indicator.innerText = `[귓속말 대상: ${uId}]`;
-        }
-        renderOnlineUsers();
-    }
-
     function sendLobbyChat() {
         let input = document.getElementById('lobby-chat-input');
         let text = input.value.trim();
         if (!text || !currentUser) return;
 
         if (!globalData.lobbyChat) globalData.lobbyChat = [];
-        globalData.lobbyChat.push({ sender: currentUser.id, target: whisperTarget, text: text });
+        globalData.lobbyChat.push({ sender: currentUser.id, text: text });
         if (globalData.lobbyChat.length > 30) globalData.lobbyChat.shift();
 
         saveSpecificData('lobbyChat', globalData.lobbyChat);
@@ -750,11 +698,7 @@
 
         for (let c of chats) {
             if (!c || !c.sender) continue;
-            if (c.target && c.target !== currentUser.id && c.sender !== currentUser.id) continue;
-            let isWhisper = !!c.target;
-            let cls = isWhisper ? 'chat-msg whisper' : 'chat-msg';
-            let prefix = isWhisper ? `[귓속말] ` : '';
-            html += `<div class="${cls}"><span class="sender" onclick="setWhisperTarget('${c.sender}')">${c.sender}</span>: ${prefix}${c.text}</div>`;
+            html += `<div class="chat-msg"><span class="sender">${c.sender}</span>: ${c.text}</div>`;
         }
         chatMsgs.innerHTML = html;
         chatMsgs.scrollTop = chatMsgs.scrollHeight;
@@ -790,9 +734,11 @@
         chatMsgs.scrollTop = chatMsgs.scrollHeight;
     }
 
-    // 새로고침 시 무조건 로그인 화면부터 시작하도록 세션 체크 로직 제거
+    // 자동 로그인 방지 및 초기화
     window.onload = () => {
-        localStorage.clear(); // 기존의 꼬인 세션 데이터 완전 초기화
+        localStorage.clear();
+        currentUser = null;
+        currentRoomId = null;
         switchView('view-auth');
     };
 </script>
