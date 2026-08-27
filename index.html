@@ -586,7 +586,10 @@
             console.error("데이터 동기화 오류:", e);
         }
 
-        if (currentUser && globalData.users[currentUser.id]) {
+        // 로그인된 상태가 아니면 아래 렌더링 로직을 절대 실행하지 않음 (방어 코드)
+        if (!currentUser) return;
+
+        if (globalData.users[currentUser.id]) {
             currentUser.omokScore = globalData.users[currentUser.id].omokScore || 0;
             let nameEl = document.getElementById('my-profile-name');
             let gradeEl = document.getElementById('my-profile-grade');
@@ -594,15 +597,12 @@
             if (gradeEl) gradeEl.innerText = getGradeText(currentUser.omokScore);
         }
 
-        // 로그인 상태(로비 이상 화면)일 때만 렌더링 함수 실행
-        if (currentUser) {
-            if (!currentRoomId) {
-                renderLobbyView();
-                renderOnlineUsers();
-                renderLobbyChat();
-            } else {
-                renderRoomOrGameView();
-            }
+        if (!currentRoomId) {
+            renderLobbyView();
+            renderOnlineUsers();
+            renderLobbyChat();
+        } else {
+            renderRoomOrGameView();
         }
     }
 
@@ -755,12 +755,13 @@
 
     function renderLobbyChat() {
         let chatMsgs = document.getElementById('lobby-chat-msgs');
-        if (!chatMsgs) return;
+        if (!chatMsgs || !currentUser) return;
         
         let chats = globalData.lobbyChat || [];
         let html = '';
 
         for (let c of chats) {
+            if (!c || !c.sender) continue; // 데이터 무결성 체크
             if (c.target && c.target !== currentUser.id && c.sender !== currentUser.id) continue;
             let isWhisper = !!c.target;
             let cls = isWhisper ? 'chat-msg whisper' : 'chat-msg';
