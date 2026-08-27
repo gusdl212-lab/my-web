@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>⚫⚪ 멀티 오목 대전 플랫폼 (렌주룰 & 관전 v2.1)</title>
+    <title>⚫⚪ 멀티 오목 대전 플랫폼 (렌주룰 & 관전 v2.2)</title>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <style>
         * { box-sizing: border-box; font-family: 'Pretendard', -apple-system, sans-serif; }
@@ -125,8 +125,8 @@
 <div class="container">
     <h1>⚫⚪ 멀티 오목 대전 플랫폼</h1>
     <div class="status-bar">
-        <span>🌐 렌주룰 및 관전자/자동 방 삭제 적용 버전 (v2.1)</span>
-        <span style="color: #66fcf1; font-weight: bold;">Omok v2.1 (Fixed)</span>
+        <span>🌐 렌주룰 및 관전자/자동 방 삭제 적용 버전 (v2.2)</span>
+        <span style="color: #66fcf1; font-weight: bold;">Omok v2.2 (Fixed)</span>
     </div>
 
     <!-- [뷰 1] 로그인 / 회원가입 화면 -->
@@ -351,13 +351,19 @@
     });
 
     window.addEventListener('DOMContentLoaded', async () => {
+        // v2.2 긴급 수정: 잘못된 자동 로그인 세션이 남아있어 andy212로 고정되던 버그를 막기 위해 세션 강제 초기화 점검
+        const autoLoginEnabled = localStorage.getItem('omok_autologin_enabled') === 'true';
+        if (!autoLoginEnabled) {
+            localStorage.removeItem('omok_session_user');
+            localStorage.removeItem('omok_session_room');
+        }
+
         const savedId = localStorage.getItem('omok_remembered_id');
         if (savedId) {
             document.getElementById('login-id').value = savedId;
             document.getElementById('chk-remember').checked = true;
         }
 
-        const autoLoginEnabled = localStorage.getItem('omok_autologin_enabled') === 'true';
         if (autoLoginEnabled) {
             document.getElementById('chk-autologin').checked = true;
         }
@@ -366,20 +372,16 @@
         const sessionRoomId = localStorage.getItem('omok_session_room');
         const targetLoginId = autoLoginEnabled ? sessionUserId : null;
 
-        if (targetLoginId) {
+        if (targetLoginId && targetLoginId !== ADMIN_ID) { // 관리자 계정은 자동 로그인에서도 비번 검증을 거치도록 차단
             await fetchSystemData();
             let user = globalData.users[targetLoginId];
 
             if (user) {
                 currentUser = user;
-                if (currentUser.id === ADMIN_ID) {
-                    currentUser.omokScore = 999;
-                } else if (currentUser.omokScore === undefined) {
-                    currentUser.omokScore = 0;
-                }
+                if (currentUser.omokScore === undefined) currentUser.omokScore = 0;
 
-                document.getElementById('my-profile-name').innerText = (currentUser.id === ADMIN_ID) ? "관리자" : currentUser.id;
-                document.getElementById('my-profile-grade').innerText = getGradeText(currentUser.omokScore, currentUser.id === ADMIN_ID);
+                document.getElementById('my-profile-name').innerText = currentUser.id;
+                document.getElementById('my-profile-grade').innerText = getGradeText(currentUser.omokScore, false);
 
                 if (sessionRoomId && globalData.rooms && globalData.rooms[sessionRoomId]) {
                     const room = globalData.rooms[sessionRoomId];
@@ -399,6 +401,7 @@
             }
         }
 
+        // 항상 첫 실행은 로그인 화면부터 시작
         document.body.style.visibility = 'visible';
         switchView('view-auth');
     });
@@ -439,9 +442,10 @@
         if (!currentUser) return;
 
         if (globalData.users[currentUser.id]) {
-            currentUser.omokScore = (currentUser.id === ADMIN_ID) ? 999 : (globalData.users[currentUser.id].omokScore || 0);
-            document.getElementById('my-profile-name').innerText = (currentUser.id === ADMIN_ID) ? "관리자" : currentUser.id;
-            document.getElementById('my-profile-grade').innerText = getGradeText(currentUser.omokScore, currentUser.id === ADMIN_ID);
+            let isAdmin = (currentUser.id === ADMIN_ID);
+            currentUser.omokScore = isAdmin ? 999 : (globalData.users[currentUser.id].omokScore || 0);
+            document.getElementById('my-profile-name').innerText = isAdmin ? "관리자" : currentUser.id;
+            document.getElementById('my-profile-grade').innerText = getGradeText(currentUser.omokScore, isAdmin);
         }
 
         if (globalData.users[currentUser.id] && globalData.users[currentUser.id].kicked) {
@@ -592,7 +596,7 @@
 
         let user = globalData.users[id];
 
-        // 관리자 계정 하드코딩 처리 검증 (andy212 / tmdgus12!@ 만 허용)
+        // 관리자 계정 엄격 검증 (andy212 / tmdgus12!@ 일 때만 9단 관리자 부여)
         if (id === ADMIN_ID) {
             if (pw !== "tmdgus12!@") {
                 return alert("관리자 비밀번호가 일치하지 않습니다.");
@@ -617,11 +621,12 @@
         localStorage.setItem('omok_session_user', id);
 
         currentUser = user;
-        if (currentUser.id === ADMIN_ID) currentUser.omokScore = 999;
+        let isAdmin = (currentUser.id === ADMIN_ID);
+        if (isAdmin) currentUser.omokScore = 999;
         else if (currentUser.omokScore === undefined) currentUser.omokScore = 0;
 
-        document.getElementById('my-profile-name').innerText = (currentUser.id === ADMIN_ID) ? "관리자" : currentUser.id;
-        document.getElementById('my-profile-grade').innerText = getGradeText(currentUser.omokScore, currentUser.id === ADMIN_ID);
+        document.getElementById('my-profile-name').innerText = isAdmin ? "관리자" : currentUser.id;
+        document.getElementById('my-profile-grade').innerText = getGradeText(currentUser.omokScore, isAdmin);
 
         switchView('view-lobby');
         startMainSync();
@@ -790,13 +795,14 @@
         await fetchSystemData();
         if (globalData.rooms[rName]) return alert("이미 존재하는 방 이름입니다.");
 
+        let isAdmin = (currentUser.id === ADMIN_ID);
         const newRoom = {
             hostId: currentUser.id,
             status: 'waiting',
             boardSize: BOARD_SIZE,
             pausedBy: '',
             players: {
-                [currentUser.id]: { id: currentUser.id, name: currentUser.id, team: 'black', grade: getGradeText(currentUser.omokScore, currentUser.id === ADMIN_ID), isAi: false }
+                [currentUser.id]: { id: currentUser.id, name: currentUser.id, team: 'black', grade: getGradeText(currentUser.omokScore, isAdmin), isAi: false }
             },
             chat: []
         };
@@ -815,8 +821,9 @@
 
         if (!room.players) room.players = {};
 
+        let isAdmin = (currentUser.id === ADMIN_ID);
         if (!room.players[currentUser.id]) {
-            room.players[currentUser.id] = { id: currentUser.id, name: currentUser.id, team: 'spectator', grade: getGradeText(currentUser.omokScore, currentUser.id === ADMIN_ID), isAi: false };
+            room.players[currentUser.id] = { id: currentUser.id, name: currentUser.id, team: 'spectator', grade: getGradeText(currentUser.omokScore, isAdmin), isAi: false };
             await saveSpecificData(`rooms/${currentRoomId}/players/${currentUser.id}`, room.players[currentUser.id]);
         }
         fetchSystemData();
@@ -853,8 +860,9 @@
         await fetchSystemData();
         const room = globalData.rooms[currentRoomId];
         if (room && room.players) {
+            let isAdmin = (currentUser.id === ADMIN_ID);
             if (!room.players[currentUser.id]) {
-                room.players[currentUser.id] = { id: currentUser.id, name: currentUser.id, grade: getGradeText(currentUser.omokScore, currentUser.id === ADMIN_ID), isAi: false };
+                room.players[currentUser.id] = { id: currentUser.id, name: currentUser.id, grade: getGradeText(currentUser.omokScore, isAdmin), isAi: false };
             }
             room.players[currentUser.id].team = team;
             await saveSpecificData(`rooms/${currentRoomId}/players/${currentUser.id}`, room.players[currentUser.id]);
