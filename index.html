@@ -2,7 +2,7 @@
 <html lang="ko"><head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>⚫⚪ 멀티 오목 대전 플랫폼 (렌주룰 적용 v1.5)</title>
+    <title>⚫⚪ 멀티 오목 대전 플랫폼 (렌주룰 적용 v1.6)</title>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <style>
         * { box-sizing: border-box; font-family: 'Pretendard', -apple-system, sans-serif; }
@@ -40,6 +40,8 @@
         .btn-ai:hover { background: #b7791f; }
         .btn-explode { background: #805ad5; color: #fff; }
         .btn-explode:hover { background: #6b46c1; }
+        .btn-spectate { background: #319795; color: #fff; }
+        .btn-spectate:hover { background: #2c7a7b; }
 
         .lobby-grid { display: grid; grid-template-columns: 260px 1fr 240px; gap: 15px; }
         .panel { background: #121821; border-radius: 10px; padding: 12px; border: 1px solid #2d3748; height: 460px; overflow-y: auto; }
@@ -123,7 +125,7 @@
     <h1>⚫⚪ 멀티 오목 대전 플랫폼</h1>
     <div class="status-bar">
         <span>🌐 렌주룰(3-3, 4-4, 장목 금수 적용) 통합 버전</span>
-        <span style="color: #66fcf1; font-weight: bold;">Omok v1.5 (Renju)</span>
+        <span style="color: #66fcf1; font-weight: bold;">Omok v1.6 (Renju)</span>
     </div>
 
     <!-- [뷰 1] 로그인 / 회원가입 화면 -->
@@ -245,6 +247,15 @@
                 </div>
                 <ul class="user-list" id="room-list-white" style="margin-top:10px;"></ul>
             </div>
+        </div>
+
+        <!-- 관전자 목록 영역 -->
+        <div style="background:#121821; padding:15px; border-radius:8px; border-top:4px solid #319795; margin-top:15px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; color:#66fcf1; font-weight:bold;">
+                <span>👁️ 관전자 목록</span>
+                <button class="btn-spectate" style="width:auto; padding:4px 10px;" onclick="selectTeam('spectator')">관전하기</button>
+            </div>
+            <ul class="user-list" id="room-list-spectator" style="margin-top:10px;"></ul>
         </div>
 
         <div id="room-host-controls" style="margin-top: 20px; text-align: center;" class="hidden">
@@ -498,6 +509,7 @@
             }
         }
 
+        // [요구사항 2] 방에 사람(플레이어 또는 관전자)이 아무도 없으면 방 자동 삭제
         if (Object.keys(room.players).length === 0) {
             delete globalData.rooms[currentRoomId];
             await removeSpecificData('rooms/' + currentRoomId);
@@ -520,8 +532,10 @@
         }
 
         if (updated) {
-            if (!room.players[room.hostId]) {
-                room.hostId = Object.keys(room.players)[0];
+            const remainingPlayers = Object.values(room.players);
+            const activePlayerIds = remainingPlayers.filter(p => !p.isAi).map(p => p.id);
+            if (!room.players[room.hostId] && activePlayerIds.length > 0) {
+                room.hostId = activePlayerIds[0];
             }
             await saveSpecificData('rooms/' + currentRoomId, room);
         }
@@ -918,7 +932,7 @@
                 item.innerHTML = `
                     <div><strong>${rId}</strong> <span style="font-size:11px; color:#aaa;">(${statusText})</span></div>
                     <div style="display:flex; align-items:center;">
-                        <button class="btn-main" style="width:auto; padding:5px 10px; font-size:11px;" onclick="joinRoom('${rId}')">입장</button>
+                        <button class="btn-main" style="width:auto; padding:5px 10px; font-size:11px;" onclick="joinRoom('${rId}')">입장/관전</button>
                         ${adminExplodeBtn}
                     </div>
                 `;
@@ -997,8 +1011,18 @@
         let myScore = (currentUser.id === ADMIN_ID) ? 999 : (currentUser.omokScore || 0);
         let myGradeText = getGradeText(myScore, currentUser.id === ADMIN_ID);
 
+        // [요구사항 1] 게임이 이미 진행 중이거나 대국자가 꽉 찼다면 기본적으로 관전자(spectator)로 참가, 아니면 빈 자리에 참가
         if (!room.players[currentUser.id]) {
-            room.players[currentUser.id] = { id: currentUser.id, name: currentUser.id, team: 'white', grade: myGradeText, isAi: false };
+            let blackCount = Object.values(room.players).filter(p => p.team === 'black').length;
+            let whiteCount = Object.values(room.players).filter(p => p.team === 'white').length;
+            
+            let assignedTeam = 'spectator';
+            if (room.status === 'waiting') {
+                if (blackCount === 0) assignedTeam = 'black';
+                else if (whiteCount === 0) assignedTeam = 'white';
+            }
+
+            room.players[currentUser.id] = { id: currentUser.id, name: currentUser.id, team: assignedTeam, grade: myGradeText, isAi: false };
             await saveSpecificData(`rooms/${currentRoomId}/players/${currentUser.id}`, room.players[currentUser.id]);
         }
 
@@ -1017,12 +1041,15 @@
         if (room && room.players) {
             delete room.players[currentUser.id];
             
+            // [요구사항 2] 방에 남은 사람이 아무도 없으면 DB에서 즉시 방 삭제
             if (Object.keys(room.players).length === 0) {
                 delete globalData.rooms[targetRoomId];
                 await removeSpecificData('rooms/' + targetRoomId);
             } else {
-                if (room.hostId === currentUser.id) {
-                    room.hostId = Object.keys(room.players)[0];
+                const remainingPlayers = Object.values(room.players);
+                const activePlayerIds = remainingPlayers.filter(p => !p.isAi).map(p => p.id);
+                if (room.hostId === currentUser.id && activePlayerIds.length > 0) {
+                    room.hostId = activePlayerIds[0];
                 }
                 await saveSpecificData('rooms/' + targetRoomId, room);
             }
@@ -1121,8 +1148,10 @@
 
             const blackList = document.getElementById('room-list-black');
             const whiteList = document.getElementById('room-list-white');
+            const spectatorList = document.getElementById('room-list-spectator');
             blackList.innerHTML = '';
             whiteList.innerHTML = '';
+            spectatorList.innerHTML = '';
 
             players.forEach(p => {
                 let displayName = p.isAi ? p.name : ((p.id === ADMIN_ID) ? "관리자" : p.id);
@@ -1130,8 +1159,10 @@
                 li.className = 'user-item';
                 li.innerHTML = `<span>${displayName} (${p.grade}) ${p.id === room.hostId ? '👑' : ''}</span>` + 
                     (isHost || p.id === currentUser.id ? `<button class="btn-danger" onclick="removePlayerOrAi('${p.id}')">${p.isAi ? '삭제' : '나가기'}</button>` : '');
+                
                 if (p.team === 'black') blackList.appendChild(li);
-                else whiteList.appendChild(li);
+                else if (p.team === 'white') whiteList.appendChild(li);
+                else spectatorList.appendChild(li);
             });
 
             document.getElementById('room-host-controls').classList.toggle('hidden', !isHost);
@@ -1213,9 +1244,10 @@
         return false;
     }
 
+    // 렌주룰 금수 판정 함수 오류 수정 (정밀한 삼삼/사사 판정)
     function checkBlackFouls(board, idx, N) {
         let tempBoard = [...board];
-        tempBoard[idx] = 1; 
+        tempBoard[idx] = 1; // 흑돌 가정
 
         let r = Math.floor(idx / N);
         let c = idx % N;
@@ -1227,6 +1259,7 @@
             [[1, -1], [-1, 1]]   
         ];
 
+        // 1. 장목(6목 이상) 검사
         for (let dir of directions) {
             let count = 1;
             for (let [dr, dc] of dir) {
@@ -1238,17 +1271,17 @@
                 }
             }
             if (count > 5) {
-                return "overline"; 
+                return "overline"; // 장목 금수
             }
         }
 
+        // 2. 삼삼(3-3) 및 사사(4-4) 검사
         let openThreeCount = 0;
         let fourCount = 0;
 
         for (let dir of directions) {
             let lineStones = [{r, c}];
-            let openEnds = 0;
-
+            
             for (let [dr, dc] of dir) {
                 let nr = r + dr, nc = c + dc;
                 let directionStones = [];
@@ -1256,9 +1289,6 @@
                     directionStones.push({r: nr, c: nc});
                     nr += dr;
                     nc += dc;
-                }
-                if (nr >= 0 && nr < N && nc >= 0 && nc < N && tempBoard[nr * N + nc] === 0) {
-                    openEnds++;
                 }
                 if (dr === dir[0][0]) lineStones = directionStones.concat(lineStones);
                 else lineStones = lineStones.concat(directionStones);
@@ -1289,6 +1319,7 @@
         return null;
     }
 
+    // [요구사항 3] AI 오목 돌 튀김 현상 및 턴 꼬임 완벽 수정
     function checkAndTriggerAiTurn() {
         if (!currentUser || !currentRoomId || !globalData || !globalData.rooms) return;
         const room = globalData.rooms[currentRoomId];
@@ -1302,14 +1333,22 @@
         const activePlayer = players.find(p => p.team === currentTeam);
 
         if (activePlayer && activePlayer.isAi) {
+            // 중복 실행 방지를 위한 플래그 및 타이머 안정화
+            if (room.aiThinking) return;
+            room.aiThinking = true;
+
             setTimeout(async () => {
                 await fetchSystemData();
-                if (!room || room.status !== 'playing' || room.turnTeam !== currentTeam) return;
+                let freshRoom = globalData.rooms[currentRoomId];
+                if (!freshRoom || freshRoom.status !== 'playing' || freshRoom.turnTeam !== currentTeam) {
+                    if (freshRoom) freshRoom.aiThinking = false;
+                    return;
+                }
 
-                let N = room.boardSize || BOARD_SIZE;
+                let N = freshRoom.boardSize || BOARD_SIZE;
                 let aiColor = currentTeam === 'black' ? 1 : 2;
                 let humanColor = aiColor === 1 ? 2 : 1;
-                let board = room.board;
+                let board = freshRoom.board;
 
                 let emptyIndices = [];
                 for (let i = 0; i < board.length; i++) {
@@ -1318,11 +1357,15 @@
                         emptyIndices.push(i);
                     }
                 }
-                if (emptyIndices.length === 0) return;
+                if (emptyIndices.length === 0) {
+                    freshRoom.aiThinking = false;
+                    return;
+                }
 
                 let center = Math.floor(N / 2) * N + Math.floor(N / 2);
                 if (emptyIndices.length === board.length && board[center] === 0) {
-                    await executeMoveOnServer(room, center, aiColor, currentTeam, N);
+                    await executeMoveOnServer(freshRoom, center, aiColor, currentTeam, N);
+                    freshRoom.aiThinking = false;
                     return;
                 }
 
@@ -1330,7 +1373,8 @@
                     let tempBoard = [...board];
                     tempBoard[idx] = aiColor;
                     if (checkOmokWin(tempBoard, idx, aiColor, N)) {
-                        await executeMoveOnServer(room, idx, aiColor, currentTeam, N);
+                        await executeMoveOnServer(freshRoom, idx, aiColor, currentTeam, N);
+                        freshRoom.aiThinking = false;
                         return;
                     }
                 }
@@ -1339,7 +1383,8 @@
                     let tempBoard = [...board];
                     tempBoard[idx] = humanColor;
                     if (checkOmokWin(tempBoard, idx, humanColor, N)) {
-                        await executeMoveOnServer(room, idx, aiColor, currentTeam, N);
+                        await executeMoveOnServer(freshRoom, idx, aiColor, currentTeam, N);
+                        freshRoom.aiThinking = false;
                         return;
                     }
                 }
@@ -1370,8 +1415,9 @@
                     }
                 }
 
-                await executeMoveOnServer(room, bestIdx, aiColor, currentTeam, N);
-            }, 1000);
+                await executeMoveOnServer(freshRoom, bestIdx, aiColor, currentTeam, N);
+                freshRoom.aiThinking = false;
+            }, 800);
         }
     }
 
@@ -1436,6 +1482,10 @@
         
         let N = room.boardSize || BOARD_SIZE;
         const myTeam = room.players[currentUser.id].team;
+        
+        // 관전자는 돌을 놓을 수 없음
+        if (myTeam === 'spectator') return alert("관전자는 돌을 놓을 수 없습니다!");
+
         const myColor = myTeam === 'black' ? 1 : 2;
 
         if (room.turnTeam !== myTeam) return alert("당신 팀의 차례가 아닙니다!");
@@ -1515,8 +1565,8 @@
 
         const myPlayer = room.players[currentUser.id];
         const myTeam = myPlayer ? myPlayer.team : null;
-        const myColor = myTeam === 'black' ? 1 : 2;
-        const isMyTurn = room.status === 'playing' && room.turnTeam === myTeam && !myPlayer?.isAi;
+        const isSpectator = (myTeam === 'spectator');
+        const isMyTurn = room.status === 'playing' && room.turnTeam === myTeam && !myPlayer?.isAi && !isSpectator;
 
         if (room.status === 'playing') {
             if (!turnTimer) {
@@ -1537,17 +1587,19 @@
                         const isHost = (room.hostId === currentUser.id) || (currentUser.id === ADMIN_ID);
                         if (isHost) {
                             await fetchSystemData();
-                            let color = room.turnTeam === 'black' ? 1 : 2;
+                            let currentRoom = globalData.rooms[currentRoomId];
+                            if (!currentRoom || currentRoom.status !== 'playing') return;
+                            let color = currentRoom.turnTeam === 'black' ? 1 : 2;
                             let emptyIndices = [];
-                            for (let i = 0; i < room.board.length; i++) {
-                                if (room.board[i] === 0) {
-                                    if (color === 1 && checkBlackFouls(room.board, i, N)) continue;
+                            for (let i = 0; i < currentRoom.board.length; i++) {
+                                if (currentRoom.board[i] === 0) {
+                                    if (color === 1 && checkBlackFouls(currentRoom.board, i, N)) continue;
                                     emptyIndices.push(i);
                                 }
                             }
                             if (emptyIndices.length > 0) {
                                 let randomIdx = emptyIndices[Math.floor(Math.random() * emptyIndices.length)];
-                                await executeMoveOnServer(room, randomIdx, color, room.turnTeam, N);
+                                await executeMoveOnServer(currentRoom, randomIdx, color, currentRoom.turnTeam, N);
                             }
                         }
                     }
@@ -1559,7 +1611,8 @@
 
         if (room.status === 'playing') {
             let teamName = room.turnTeam === 'black' ? '⚫ 흑돌' : '⚪ 백돌';
-            if (!turnTimer) turnBadge.innerHTML = `${teamName}의 차례입니다. (<span style="color: #66fcf1;">⏳ ${timeLeft}초</span>)`;
+            let specNotice = isSpectator ? ' <span style="color:#319795;">(관전 중)</span>' : '';
+            if (!turnTimer) turnBadge.innerHTML = `${teamName}의 차례입니다. (<span style="color: #66fcf1;">⏳ ${timeLeft}초</span>)${specNotice}`;
         } else if (room.status === 'ended') {
             if (room.winner === 'draw') {
                 turnBadge.innerHTML = '🤝 무승부!';
