@@ -33,8 +33,6 @@
         .btn-blue:hover { background: #3182ce; }
         .btn-red { background: #c53030; color: #fff; }
         .btn-red:hover { background: #e53e3e; }
-        .btn-purple { background: #805ad5; color: #fff; }
-        .btn-purple:hover { background: #6b46c1; }
         .btn-main { background: #66fcf1; color: #0b0c10; font-size: 14px; font-weight: 800; }
         .btn-main:hover { background: #45a29e; }
         .btn-danger { background: #e53e3e; color: #fff; padding: 5px 10px; font-size: 11px; width: auto; }
@@ -124,7 +122,7 @@
 <div class="container">
     <h1>⚫⚪ 멀티 오목 대전 플랫폼</h1>
     <div class="status-bar">
-        <span>🌐 렌주룰(3-3, 4-4, 장목 금수 적용) 통합 버전 + 관전자 모드</span>
+        <span>🌐 렌주룰(3-3, 4-4, 장목 금수 적용) 통합 버전</span>
         <span style="color: #66fcf1; font-weight: bold;">Omok v1.5 (Renju)</span>
     </div>
 
@@ -150,9 +148,11 @@
 
         <div id="form-signup" class="hidden">
             <h3 style="text-align:center; color:#66fcf1;">📝 회원가입</h3>
+            <p style="font-size: 11px; color: #66fcf1; text-align: center; margin-bottom: 10px;">💡 여기서 가입하면 오셀로 사이트에서도 즉시 연동됩니다!</p>
             <input type="text" id="signup-id" placeholder="사용할 아이디" maxlength="20" onkeypress="if(event.key==='Enter') handleSignup()">
             <input type="password" id="signup-pw" placeholder="비밀번호" maxlength="20" onkeypress="if(event.key==='Enter') handleSignup()">
             <input type="password" id="signup-pw-confirm" placeholder="비밀번호 확인" maxlength="20" onkeypress="if(event.key==='Enter') handleSignup()">
+            
             <input type="text" id="signup-email" placeholder="이메일 입력 (@korea.kr 필수)" maxlength="40" onkeypress="if(event.key==='Enter') handleSignup()">
             
             <button class="btn-main" onclick="handleSignup()">가입 완료 ✨</button>
@@ -224,33 +224,26 @@
             <button class="btn-danger" style="width:auto;" onclick="leaveRoom()">방 나가기 🚪</button>
         </div>
 
-        <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:12px; margin-top:15px;">
-            <div style="background:#121821; padding:12px; border-radius:8px; border-top:4px solid #333;">
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px; margin-top:15px;">
+            <div style="background:#121821; padding:15px; border-radius:8px; border-top:4px solid #333;">
                 <div style="display:flex; justify-content:space-between; align-items:center; color:#fff; font-weight:bold;">
-                    <span>⚫ 흑돌 (선공)</span>
-                    <div style="display:flex; gap:3px;">
-                        <button class="btn-ai host-only hidden" style="width:auto; padding:2px 6px; font-size:10px;" onclick="openAddAiModal('black')">+AI</button>
-                        <button class="btn-blue" style="width:auto; padding:3px 8px; font-size:11px;" onclick="selectTeam('black')">참가</button>
+                    <span>⚫ 흑돌 (선공 - 렌주룰 적용)</span>
+                    <div style="display:flex; gap:5px;">
+                        <button class="btn-ai host-only hidden" style="width:auto; padding:3px 8px; font-size:11px;" onclick="openAddAiModal('black')">+ AI 추가</button>
+                        <button class="btn-blue" style="width:auto; padding:4px 10px;" onclick="selectTeam('black')">참가</button>
                     </div>
                 </div>
-                <ul class="user-list" id="room-list-black" style="margin-top:8px;"></ul>
+                <ul class="user-list" id="room-list-black" style="margin-top:10px;"></ul>
             </div>
-            <div style="background:#121821; padding:12px; border-radius:8px; border-top:4px solid #fff;">
+            <div style="background:#121821; padding:15px; border-radius:8px; border-top:4px solid #fff;">
                 <div style="display:flex; justify-content:space-between; align-items:center; color:#ccc; font-weight:bold;">
-                    <span>⚪ 백돌 (후공)</span>
-                    <div style="display:flex; gap:3px;">
-                        <button class="btn-ai host-only hidden" style="width:auto; padding:2px 6px; font-size:10px;" onclick="openAddAiModal('white')">+AI</button>
-                        <button class="btn-red" style="width:auto; padding:3px 8px; font-size:11px;" onclick="selectTeam('white')">참가</button>
+                    <span>⚪ 백돌 (후공 - 제한 없음)</span>
+                    <div style="display:flex; gap:5px;">
+                        <button class="btn-ai host-only hidden" style="width:auto; padding:3px 8px; font-size:11px;" onclick="openAddAiModal('white')">+ AI 추가</button>
+                        <button class="btn-red" style="width:auto; padding:4px 10px;" onclick="selectTeam('white')">참가</button>
                     </div>
                 </div>
-                <ul class="user-list" id="room-list-white" style="margin-top:8px;"></ul>
-            </div>
-            <div style="background:#121821; padding:12px; border-radius:8px; border-top:4px solid #805ad5;">
-                <div style="display:flex; justify-content:space-between; align-items:center; color:#b794f4; font-weight:bold;">
-                    <span>👁️ 관전</span>
-                    <button class="btn-purple" style="width:auto; padding:3px 8px; font-size:11px;" onclick="selectTeam('spectator')">관전 참가</button>
-                </div>
-                <ul class="user-list" id="room-list-spectator" style="margin-top:8px;"></ul>
+                <ul class="user-list" id="room-list-white" style="margin-top:10px;"></ul>
             </div>
         </div>
 
@@ -468,7 +461,7 @@
                 currentRoomId = null;
                 localStorage.removeItem('omok_session_room');
                 switchView('view-lobby');
-                alert("관리자에 의해 방이 폭파되었거나 방이 삭제되었습니다.");
+                alert("관리자에 의해 방이 폭파되었습니다.");
                 return;
             }
         }
@@ -505,7 +498,6 @@
             }
         }
 
-        // 사람 없을 시 자동 방 삭제 기능
         if (Object.keys(room.players).length === 0) {
             delete globalData.rooms[currentRoomId];
             await removeSpecificData('rooms/' + currentRoomId);
@@ -529,10 +521,7 @@
 
         if (updated) {
             if (!room.players[room.hostId]) {
-                const remainingPlayers = Object.keys(room.players);
-                if (remainingPlayers.length > 0) {
-                    room.hostId = remainingPlayers[0];
-                }
+                room.hostId = Object.keys(room.players)[0];
             }
             await saveSpecificData('rooms/' + currentRoomId, room);
         }
@@ -605,7 +594,12 @@
 
         await fetchSystemData();
 
-        if (globalData.users[id]) return alert("이미 존재하는 아이디입니다.");
+        if (globalData.users[id]) return alert("이미 존재하는 아이디입니다. (오셀로 가입 계정 포함)");
+
+        const existingUserWithEmail = Object.values(globalData.users || {}).find(user => user.email === email);
+        if (existingUserWithEmail) {
+            return alert("이미 사용 중인 이메일입니다. 다른 이메일을 사용해 주세요.");
+        }
 
         let newUser = { id: id, pw: pw, email: email, omokScore: 0, joinedAt: Date.now(), lastActive: 0 };
         globalData.users[id] = newUser;
@@ -615,7 +609,7 @@
             return alert("네트워크 오류로 회원가입에 실패했습니다.");
         }
 
-        alert("회원가입 완료! 로그인해주세요.");
+        alert("회원가입 완료! 오셀로 사이트와도 연동되었습니다. 로그인해주세요.");
         switchAuthMode('login');
     }
 
@@ -708,10 +702,13 @@
 
     async function deleteUserAccount(targetId) {
         if (!currentUser || currentUser.id !== ADMIN_ID) {
-            return alert("관리자 권한이 필요합니다.");
+            return alert("관리자만 회원 탈퇴 기능을 사용할 수 있습니다.");
         }
-        if (!targetId || targetId === 'undefined' || targetId === ADMIN_ID) {
+        if (!targetId || targetId === 'undefined' || targetId === 'null') {
             return alert("유효하지 않은 회원 ID입니다.");
+        }
+        if (targetId === ADMIN_ID) {
+            return alert("관리자 계정은 탈퇴시킬 수 없습니다.");
         }
 
         if (!confirm(`정말로 '${targetId}' 계정을 강제 탈퇴(삭제)시키겠습니까?`)) {
@@ -724,12 +721,17 @@
             await removeSpecificData('users/' + targetId);
             alert(`'${targetId}' 회원의 계정이 성공적으로 삭제되었습니다.`);
             fetchSystemData();
+        } else {
+            await removeSpecificData('users/' + targetId);
+            alert("존재하지 않거나 이미 삭제된 회원입니다. (DB 데이터 정리 완료)");
+            fetchSystemData();
         }
     }
 
     async function forceLogoutUser(targetId) {
         if (!currentUser || currentUser.id !== ADMIN_ID) return;
-        if (!targetId || targetId === 'undefined' || targetId === ADMIN_ID) return;
+        if (!targetId || targetId === 'undefined') return;
+        if (targetId === ADMIN_ID) return alert("관리자 계정은 로그아웃시킬 수 없습니다.");
 
         if (confirm(`'${targetId}' 유저를 강제 로그아웃 시키겠습니까?`)) {
             await saveSpecificData(`users/${targetId}/kicked`, true);
@@ -1015,7 +1017,6 @@
         if (room && room.players) {
             delete room.players[currentUser.id];
             
-            // 사람 없을 시 자동 방 삭제 처리
             if (Object.keys(room.players).length === 0) {
                 delete globalData.rooms[targetRoomId];
                 await removeSpecificData('rooms/' + targetRoomId);
@@ -1120,11 +1121,8 @@
 
             const blackList = document.getElementById('room-list-black');
             const whiteList = document.getElementById('room-list-white');
-            const spectatorList = document.getElementById('room-list-spectator');
-            
             blackList.innerHTML = '';
             whiteList.innerHTML = '';
-            spectatorList.innerHTML = '';
 
             players.forEach(p => {
                 let displayName = p.isAi ? p.name : ((p.id === ADMIN_ID) ? "관리자" : p.id);
@@ -1132,11 +1130,8 @@
                 li.className = 'user-item';
                 li.innerHTML = `<span>${displayName} (${p.grade}) ${p.id === room.hostId ? '👑' : ''}</span>` + 
                     (isHost || p.id === currentUser.id ? `<button class="btn-danger" onclick="removePlayerOrAi('${p.id}')">${p.isAi ? '삭제' : '나가기'}</button>` : '');
-                
                 if (p.team === 'black') blackList.appendChild(li);
-                else if (p.team === 'white') whiteList.appendChild(li);
-                else if (p.team === 'spectator') spectatorList.appendChild(li);
-                else blackList.appendChild(li); // 기본값 방어
+                else whiteList.appendChild(li);
             });
 
             document.getElementById('room-host-controls').classList.toggle('hidden', !isHost);
@@ -1220,7 +1215,7 @@
 
     function checkBlackFouls(board, idx, N) {
         let tempBoard = [...board];
-        tempBoard[idx] = 1;
+        tempBoard[idx] = 1; 
 
         let r = Math.floor(idx / N);
         let c = idx % N;
@@ -1243,7 +1238,7 @@
                 }
             }
             if (count > 5) {
-                return "overline";
+                return "overline"; 
             }
         }
 
@@ -1252,6 +1247,8 @@
 
         for (let dir of directions) {
             let lineStones = [{r, c}];
+            let openEnds = 0;
+
             for (let [dr, dc] of dir) {
                 let nr = r + dr, nc = c + dc;
                 let directionStones = [];
@@ -1259,6 +1256,9 @@
                     directionStones.push({r: nr, c: nc});
                     nr += dr;
                     nc += dc;
+                }
+                if (nr >= 0 && nr < N && nc >= 0 && nc < N && tempBoard[nr * N + nc] === 0) {
+                    openEnds++;
                 }
                 if (dr === dir[0][0]) lineStones = directionStones.concat(lineStones);
                 else lineStones = lineStones.concat(directionStones);
@@ -1436,10 +1436,6 @@
         
         let N = room.boardSize || BOARD_SIZE;
         const myTeam = room.players[currentUser.id].team;
-        
-        // 관전자일 경우 돌을 놓을 수 없음
-        if (myTeam === 'spectator') return alert("관전자는 돌을 놓을 수 없습니다!");
-
         const myColor = myTeam === 'black' ? 1 : 2;
 
         if (room.turnTeam !== myTeam) return alert("당신 팀의 차례가 아닙니다!");
@@ -1519,8 +1515,8 @@
 
         const myPlayer = room.players[currentUser.id];
         const myTeam = myPlayer ? myPlayer.team : null;
-        const isSpectator = (myTeam === 'spectator');
-        const isMyTurn = room.status === 'playing' && room.turnTeam === myTeam && !myPlayer?.isAi && !isSpectator;
+        const myColor = myTeam === 'black' ? 1 : 2;
+        const isMyTurn = room.status === 'playing' && room.turnTeam === myTeam && !myPlayer?.isAi;
 
         if (room.status === 'playing') {
             if (!turnTimer) {
@@ -1563,8 +1559,7 @@
 
         if (room.status === 'playing') {
             let teamName = room.turnTeam === 'black' ? '⚫ 흑돌' : '⚪ 백돌';
-            let specNotice = isSpectator ? ' <span style="color:#b794f4; font-size:13px;">(관전 중)</span>' : '';
-            if (!turnTimer) turnBadge.innerHTML = `${teamName}의 차례입니다. (<span style="color: #66fcf1;">⏳ ${timeLeft}초</span>)${specNotice}`;
+            if (!turnTimer) turnBadge.innerHTML = `${teamName}의 차례입니다. (<span style="color: #66fcf1;">⏳ ${timeLeft}초</span>)`;
         } else if (room.status === 'ended') {
             if (room.winner === 'draw') {
                 turnBadge.innerHTML = '🤝 무승부!';
