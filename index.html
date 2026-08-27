@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>⚫⚪ 멀티 오목 대전 플랫폼 (렌주룰 적용 v1.5)</title>
+    <title>⚫⚪ 멀티 오목 대전 플랫폼 (렌주룰 적용 v1.6)</title>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <style>
         * { box-sizing: border-box; font-family: 'Pretendard', -apple-system, sans-serif; }
@@ -317,7 +317,85 @@
     let turnTimer = null;
     let whisperTarget = null; 
 
-    // 핵심 로직 스크립트 연결부 (방 폭파 및 관전자 분기 처리 포함)
+    window.addEventListener('DOMContentLoaded', async () => {
+        const savedId = localStorage.getItem('omok_remembered_id');
+        if (savedId) {
+            document.getElementById('login-id').value = savedId;
+            document.getElementById('chk-remember').checked = true;
+        }
+
+        const autoLoginEnabled = localStorage.getItem('omok_autologin_enabled') === 'true';
+        if (autoLoginEnabled) {
+            document.getElementById('chk-autologin').checked = true;
+        }
+
+        const sessionUserId = localStorage.getItem('omok_session_user');
+        const sessionRoomId = localStorage.getItem('omok_session_room');
+        const targetLoginId = autoLoginEnabled ? sessionUserId : null;
+
+        if (targetLoginId) {
+            await fetchSystemData();
+            let user = globalData.users[targetLoginId];
+            if (!user && targetLoginId === ADMIN_ID) {
+                user = { id: ADMIN_ID, pw: "tmdgus12!@", email: "admin@korea.kr", omokScore: 999 };
+            }
+
+            if (user) {
+                currentUser = user;
+                if (currentUser.id === ADMIN_ID) {
+                    currentUser.omokScore = 999;
+                } else if (currentUser.omokScore === undefined) {
+                    currentUser.omokScore = 0;
+                }
+
+                document.getElementById('my-profile-name').innerText = (currentUser.id === ADMIN_ID) ? "관리자" : currentUser.id;
+                document.getElementById('my-profile-grade').innerText = getGradeText(currentUser.omokScore, currentUser.id === ADMIN_ID);
+
+                if (sessionRoomId && globalData.rooms && globalData.rooms[sessionRoomId]) {
+                    const room = globalData.rooms[sessionRoomId];
+                    if (room.players && room.players[currentUser.id]) {
+                        currentRoomId = sessionRoomId;
+                    }
+                }
+
+                if (currentRoomId) {
+                    renderRoomOrGameView();
+                } else {
+                    switchView('view-lobby');
+                }
+                startMainSync();
+                document.body.style.visibility = 'visible';
+                return;
+            }
+        }
+
+        document.body.style.visibility = 'visible';
+        switchView('view-auth');
+    });
+
+    async function fetchSystemData() {
+        try {
+            let res = await fetch(`${FIREBASE_BASE_URL}.json`);
+            if (res.ok) {
+                let data = await res.json();
+                if (data) {
+                    if (data.users) globalData.users = data.users;
+                    if (data.rooms) globalData.rooms = data.rooms;
+                    if (data.lobbyChat) globalData.lobbyChat = data.lobbyChat;
+                }
+            }
+        } catch (e) {}
+
+        if (!globalData.users) globalData.users = {};
+        if (!globalData.rooms) globalData.rooms = {};
+        if (!globalData.lobbyChat) globalData.lobbyChat = [];
+
+        if (!globalData.users[ADMIN_ID] || globalData.users[ADMIN_ID].omokScore !== 999) {
+            globalData.users[ADMIN_ID] = { id: ADMIN_ID, pw: "tmdgus12!@", email: "admin@korea.kr", omokScore: 999 };
+            await saveSpecificData('users/' + ADMIN_ID, globalData.users[ADMIN_ID]);
+        }
+    }
+
     async function checkAndHandlePlayerDisconnect() {
         if (!currentRoomId || !globalData.rooms || !globalData.rooms[currentRoomId]) return;
         const room = globalData.rooms[currentRoomId];
@@ -335,7 +413,7 @@
             }
         }
 
-        // 방에 남은 유저가 없으면 방 자동 폭파
+        // 방 참여자가 0명이면 방 자동 폭파 (삭제)
         if (Object.keys(room.players).length === 0) {
             delete globalData.rooms[currentRoomId];
             await removeSpecificData('rooms/' + currentRoomId);
@@ -346,7 +424,7 @@
         }
 
         if (updated) {
-            if (room.players[room.hostId]) {
+            if (!room.players[room.hostId]) {
                 room.hostId = Object.keys(room.players)[0];
             }
             await saveSpecificData('rooms/' + currentRoomId, room);
@@ -372,6 +450,120 @@
         } catch (e) {}
     }
 
+    function switchAuthMode(mode) {
+        document.getElementById('form-login').classList.add('hidden');
+        document.getElementById('form-signup').classList.add('hidden');
+        document.getElementById('form-forgot').classList.add('hidden');
+
+        if (mode === 'login') document.getElementById('form-login').classList.remove('hidden');
+        if (mode === 'signup') document.getElementById('form-signup').classList.remove('hidden');
+        if (mode === 'forgot') document.getElementById('form-forgot').classList.remove('hidden');
+    }
+
+    async function handleLogin() {
+        await fetchSystemData();
+        let id = document.getElementById('login-id').value.trim();
+        let pw = document.getElementById('login-pw').value.trim();
+        let rememberId = document.getElementById('chk-remember').checked;
+        let autoLogin = document.getElementById('chk-autologin').checked;
+
+        if (!id || !pw) return alert("아이디와 비밀번호를 입력해주세요.");
+
+        let user = globalData.users[id];
+        if (!user && id === ADMIN_ID && pw === "tmdgus12!@") {
+            user = { id: ADMIN_ID, pw: "tmdgus12!@", email: "admin@korea.kr", omokScore: 999, lastActive: Date.now() };
+            globalData.users[ADMIN_ID] = user;
+            await saveSpecificData('users/' + ADMIN_ID, user);
+        }
+
+        if (!user || user.pw !== pw) {
+            return alert("아이디 또는 비밀번호가 올바르지 않습니다.");
+        }
+
+        if (rememberId) {
+            localStorage.setItem('omok_remembered_id', id);
+        } else {
+            localStorage.removeItem('omok_remembered_id');
+        }
+
+        if (autoLogin) {
+            localStorage.setItem('omok_autologin_enabled', 'true');
+        } else {
+            localStorage.removeItem('omok_autologin_enabled');
+        }
+
+        localStorage.setItem('omok_session_user', id);
+
+        currentUser = user;
+        if (currentUser.id === ADMIN_ID) {
+            currentUser.omokScore = 999;
+        } else if (currentUser.omokScore === undefined) {
+            currentUser.omokScore = 0;
+        }
+
+        document.getElementById('my-profile-name').innerText = (currentUser.id === ADMIN_ID) ? "관리자" : currentUser.id;
+        document.getElementById('my-profile-grade').innerText = getGradeText(currentUser.omokScore, currentUser.id === ADMIN_ID);
+
+        switchView('view-lobby');
+        startMainSync();
+    }
+
+    async function handleSignup() {
+        let id = document.getElementById('signup-id').value.trim();
+        let pw = document.getElementById('signup-pw').value.trim();
+        let pwConf = document.getElementById('signup-pw-confirm').value.trim();
+        let email = document.getElementById('signup-email').value.trim();
+
+        if (!id) return alert("아이디를 입력해주세요.");
+        if (!pw || pw !== pwConf) return alert("비밀번호가 일치하지 않거나 비어있습니다.");
+        if (!email.endsWith('@korea.kr')) return alert("이메일은 반드시 @korea.kr 형식이어야 합니다.");
+        if (id === ADMIN_ID) return alert("해당 아이디는 사용할 수 없습니다.");
+
+        await fetchSystemData();
+
+        if (globalData.users[id]) return alert("이미 존재하는 아이디입니다.");
+
+        let newUser = { id: id, pw: pw, email: email, omokScore: 0, joinedAt: Date.now(), lastActive: 0 };
+        globalData.users[id] = newUser;
+        
+        let success = await saveSpecificData('users/' + id, newUser);
+        if (!success) {
+            return alert("네트워크 오류로 회원가입에 실패했습니다.");
+        }
+
+        alert("회원가입 완료! 로그인해주세요.");
+        switchAuthMode('login');
+    }
+
+    async function handlePasswordReset() {
+        let id = document.getElementById('forgot-id').value.trim();
+        let email = document.getElementById('forgot-email').value.trim();
+        let newPw = document.getElementById('forgot-newpw').value.trim();
+
+        if (!id || !email || !newPw) return alert("모든 항목을 입력해주세요.");
+
+        await fetchSystemData();
+        let user = globalData.users[id];
+        if (!user || user.email !== email) {
+            return alert("아이디 또는 이메일이 일치하지 않습니다.");
+        }
+
+        user.pw = newPw;
+        await saveSpecificData('users/' + id, user);
+        alert("비밀번호가 성공적으로 변경되었습니다.");
+        switchAuthMode('login');
+    }
+
+    function handleLogout() {
+        localStorage.removeItem('omok_session_user');
+        localStorage.removeItem('omok_session_room');
+        localStorage.removeItem('omok_autologin_enabled');
+        currentUser = null;
+        currentRoomId = null;
+        if (syncInterval) clearInterval(syncInterval);
+        switchView('view-auth');
+    }
+
     function switchView(viewId) {
         document.getElementById('view-auth').classList.add('hidden');
         document.getElementById('view-lobby').classList.add('hidden');
@@ -380,24 +572,9 @@
         document.getElementById(viewId).classList.remove('hidden');
     }
 
-    // 기본 기능 함수들 스텁 보완
     function getGradeText(score, isAdmin) {
         if (isAdmin) return "999단 (관리자)";
         return score + "단";
-    }
-
-    async function fetchSystemData() {
-        try {
-            let res = await fetch(`${FIREBASE_BASE_URL}.json`);
-            if (res.ok) {
-                let data = await res.json();
-                if (data) {
-                    if (data.users) globalData.users = data.users;
-                    if (data.rooms) globalData.rooms = data.rooms;
-                    if (data.lobbyChat) globalData.lobbyChat = data.lobbyChat;
-                }
-            }
-        } catch (e) {}
     }
 
     function startMainSync() {
@@ -409,6 +586,93 @@
             }
             await fetchSystemData();
         }, 3000);
+    }
+
+    async function selectTeam(team) {
+        if (!currentRoomId) return;
+        await fetchSystemData();
+        const room = globalData.rooms[currentRoomId];
+        if (!room) return;
+
+        if (!room.players) room.players = {};
+        
+        // 기존 팀 정보 제거 후 재등록 (관전자는 'spectator')
+        room.players[currentUser.id] = { id: currentUser.id, team: team, isAi: false };
+        await saveSpecificData('rooms/' + currentRoomId, room);
+        renderRoomOrGameView();
+    }
+
+    async function leaveRoom() {
+        if (!currentRoomId) return;
+        await fetchSystemData();
+        const room = globalData.rooms[currentRoomId];
+        if (room && room.players && room.players[currentUser.id]) {
+            delete room.players[currentUser.id];
+            
+            // 방에 사람이 아예 없으면 방 자체를 폭파
+            if (Object.keys(room.players).length === 0) {
+                await removeSpecificData('rooms/' + currentRoomId);
+            } else {
+                await saveSpecificData('rooms/' + currentRoomId, room);
+            }
+        }
+        currentRoomId = null;
+        localStorage.removeItem('omok_session_room');
+        switchView('view-lobby');
+    }
+
+    function renderRoomOrGameView() {
+        const room = globalData.rooms[currentRoomId];
+        if (!room) {
+            currentRoomId = null;
+            switchView('view-lobby');
+            return;
+        }
+        document.getElementById('display-room-id').innerText = currentRoomId;
+        
+        // 대기실 및 관전자 리스트 업데이트용 기본 처리
+        if (room.status === 'playing') {
+            switchView('view-game');
+        } else {
+            switchView('view-room');
+            let specListHtml = '';
+            let blackListHtml = '';
+            let whiteListHtml = '';
+
+            if (room.players) {
+                for (const [pId, pData] of Object.entries(room.players)) {
+                    let html = `<li class="user-item"><span>${pId}</span></li>`;
+                    if (pData.team === 'black') blackListHtml += html;
+                    else if (pData.team === 'white') whiteListHtml += html;
+                    else if (pData.team === 'spectator') specListHtml += html;
+                }
+            }
+            document.getElementById('room-list-black').innerHTML = blackListHtml || '<li style="color:#777; font-size:11px;">없음</li>';
+            document.getElementById('room-list-white').innerHTML = whiteListHtml || '<li style="color:#777; font-size:11px;">없음</li>';
+            document.getElementById('room-list-spectator').innerHTML = specListHtml || '<li style="color:#777; font-size:11px;">관전자 없음</li>';
+        }
+    }
+
+    function createRoom() {
+        const rId = "방_" + Math.random().toString(36.substring(2, 7));
+        currentRoomId = rId;
+        let newRoom = {
+            id: rId,
+            hostId: currentUser.id,
+            status: 'waiting',
+            players: {
+                [currentUser.id]: { id: currentUser.id, team: 'black', isAi: false }
+            },
+            board: Array(15).fill(null).map(() => Array(15).fill(null))
+        };
+        saveSpecificData('rooms/' + rId, newRoom).then(() => {
+            localStorage.setItem('omok_session_room', rId);
+            renderRoomOrGameView();
+        });
+    }
+
+    function renderLobbyView() {
+        switchView('view-lobby');
     }
 </script>
 </body>
