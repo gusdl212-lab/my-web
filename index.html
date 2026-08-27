@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>⚫⚪ 멀티 오목 대전 플랫폼</title>
+    <title>⚫⚪ 멀티 오목 대전 플랫폼 v2</title>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <style>
         * { box-sizing: border-box; font-family: 'Pretendard', -apple-system, sans-serif; }
@@ -11,16 +11,12 @@
             margin: 0; padding: 15px; background: #0b0c10; color: #e0e6ed;
             display: flex; justify-content: center; align-items: center; min-height: 100vh;
         }
-
         .container {
             width: 100%; max-width: 950px; background: #1f2833; border-radius: 16px;
             padding: 20px; box-shadow: 0 0 30px rgba(0, 255, 204, 0.1); border: 1px solid #45a29e;
-            position: relative;
         }
-
         h1 { text-align: center; color: #66fcf1; margin-top: 0; margin-bottom: 5px; font-size: 24px; }
         .status-bar { display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #4eacc5; margin-bottom: 15px; background: #121821; padding: 6px 12px; border-radius: 6px; border: 1px solid #2d3748; }
-
         .card { background: #0b0c10; border-radius: 12px; padding: 20px; margin-bottom: 15px; border: 1px solid #2d3748; }
         input[type="text"], input[type="password"] {
             width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #45a29e;
@@ -31,43 +27,30 @@
             cursor: pointer; transition: 0.2s; font-size: 13px; width: 100%;
         }
         .btn-blue { background: #2b6cb0; color: #fff; }
-        .btn-blue:hover { background: #3182ce; }
         .btn-red { background: #c53030; color: #fff; }
-        .btn-red:hover { background: #e53e3e; }
         .btn-main { background: #66fcf1; color: #0b0c10; font-size: 14px; font-weight: 800; }
-        .btn-main:hover { background: #45a29e; }
         .btn-danger { background: #e53e3e; color: #fff; padding: 5px 10px; font-size: 11px; width: auto; }
         .btn-spectate { background: #319795; color: #fff; }
-        .btn-spectate:hover { background: #2c7a7b; }
-
         .lobby-grid { display: grid; grid-template-columns: 260px 1fr 240px; gap: 15px; }
         .panel { background: #121821; border-radius: 10px; padding: 12px; border: 1px solid #2d3748; height: 460px; overflow-y: auto; }
         .panel h3 { font-size: 14px; color: #66fcf1; margin-top: 0; border-bottom: 1px solid #2d3748; padding-bottom: 8px; }
-
-        .rank-item { display: flex; justify-content: space-between; font-size: 12px; padding: 6px 8px; border-bottom: 1px solid #1f2833; align-items: center; }
+        .rank-item, .user-item { display: flex; justify-content: space-between; align-items: center; font-size: 12px; padding: 6px 8px; border-bottom: 1px solid #1f2833; }
         .user-list { list-style: none; padding: 0; margin: 0; font-size: 12px; }
-        .user-item { display: flex; justify-content: space-between; align-items: center; padding: 6px; background: #1f2833; margin-bottom: 4px; border-radius: 4px; }
-        
         .chat-messages { list-style: none; padding: 0; margin: 0; font-size: 12px; }
         .chat-msg { margin-bottom: 6px; word-break: break-all; }
         .chat-msg span.sender { color: #66fcf1; font-weight: bold; }
-
         .room-list-box { max-height: 360px; overflow-y: auto; }
         .room-item {
             display: flex; justify-content: space-between; align-items: center;
             padding: 10px 14px; background: #1f2833; border-radius: 8px; margin-bottom: 8px; border: 1px solid #2d3748;
         }
-
         .game-layout { display: grid; grid-template-columns: 1fr 260px; gap: 15px; }
         .board-wrapper { position: relative; max-width: 480px; margin: 0 auto; width: 100%; }
-        
         .omok-board {
             display: grid; grid-template-columns: repeat(15, 1fr); grid-template-rows: repeat(15, 1fr);
             width: 100%; aspect-ratio: 1; background: #dcb35c;
             padding: 15px; border-radius: 6px; border: 3px solid #7c5c1e; gap: 0;
-            box-sizing: border-box;
         }
-
         .cell {
             position: relative; cursor: pointer;
             display: flex; align-items: center; justify-content: center;
@@ -79,11 +62,9 @@
         .cell.edge-left::after { left: 50%; }
         .cell.edge-right::after { right: 50%; }
         .cell:hover::not(:has(.stone)) { background: rgba(255, 255, 255, 0.2); }
-
         .stone { width: 85%; height: 85%; border-radius: 50%; position: absolute; z-index: 5; box-shadow: 2px 2px 4px rgba(0,0,0,0.4); }
         .stone.black { background: radial-gradient(circle at 35% 35%, #555, #000); }
         .stone.white { background: radial-gradient(circle at 35% 35%, #fff, #bbb); border: 1px solid #888; }
-
         .hidden { display: none !important; }
         .game-chat-panel { background: #121821; border-radius: 8px; border: 1px solid #2d3748; display: flex; flex-direction: column; height: 500px; padding: 10px; }
         .game-chat-msgs { flex: 1; overflow-y: auto; margin-bottom: 10px; font-size: 12px; }
@@ -98,11 +79,11 @@
         <h1 style="margin: 0;">멀티 오목 대전 플랫폼</h1>
     </div>
     <div class="status-bar">
-        <span>🌐 렌주룰 및 오셀로 스타일 관전 모드 지원</span>
-        <span style="color: #66fcf1; font-weight: bold;">Omok v1.8</span>
+        <span>🌐 렌주룰 및 오셀로 스타일 관전 모드 적용 완료</span>
+        <span style="color: #66fcf1; font-weight: bold;">Omok v2.0 (Spectator Fixed)</span>
     </div>
 
-    <!-- 로그인 / 회원가입 화면 -->
+    <!-- 로그인 화면 -->
     <div id="view-auth" class="card auth-box">
         <div id="form-login">
             <h3 style="text-align:center; color:#66fcf1;">🔐 로그인</h3>
@@ -113,7 +94,6 @@
                 <span style="color:#aaa; cursor:pointer;" onclick="switchAuthMode('signup')">회원가입하기</span>
             </div>
         </div>
-
         <div id="form-signup" class="hidden">
             <h3 style="text-align:center; color:#66fcf1;">📝 회원가입</h3>
             <input type="text" id="signup-id" placeholder="사용할 아이디" maxlength="20">
@@ -131,13 +111,11 @@
             <div>[오목 로비] 환영합니다, <strong id="my-profile-name"></strong>님 (<span id="my-profile-grade" style="color:#ffd700;">1단</span>)</div>
             <button class="btn-danger" onclick="handleLogout()">로그아웃 🚪</button>
         </div>
-
         <div class="lobby-grid">
             <div class="panel">
                 <h3>🏆 오목 랭킹</h3>
                 <div id="ranking-list">불러오는 중...</div>
             </div>
-
             <div class="panel" style="background:#1f2833;">
                 <h3 style="display:flex; justify-content:space-between; align-items:center;">
                     <span>🚪 오목 방 목록</span>
@@ -147,11 +125,9 @@
                     <div style="text-align: center; color: #888; padding: 20px;">개설된 방이 없습니다.</div>
                 </div>
             </div>
-
             <div class="panel" style="display:flex; flex-direction:column;">
                 <h3>🟢 접속자 (<span id="online-count">0</span>명)</h3>
                 <ul class="user-list" id="online-user-list" style="max-height:110px; overflow-y:auto; margin-bottom:10px;"></ul>
-                
                 <h3 style="margin-top:0;">💬 로비 채팅</h3>
                 <ul class="chat-messages" id="lobby-chat-msgs" style="flex:1; overflow-y:auto; margin-bottom:8px;"></ul>
                 <div style="display:flex; gap:5px;">
@@ -162,13 +138,12 @@
         </div>
     </div>
 
-    <!-- 방 대기실 (참가/관전 선택 화면) -->
+    <!-- 대기실 (참가/관전 선택 화면) -->
     <div id="view-room" class="card hidden">
         <div style="display: flex; justify-content: space-between; align-items: center;">
             <h3>🏠 방 이름: <span id="display-room-id" style="color:#66fcf1;"></span></h3>
             <button class="btn-danger" onclick="leaveRoom()">방 나가기 🚪</button>
         </div>
-
         <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px; margin-top:15px;">
             <div style="background:#121821; padding:15px; border-radius:8px; border-top:4px solid #333;">
                 <div style="display:flex; justify-content:space-between; align-items:center; color:#fff; font-weight:bold;">
@@ -185,7 +160,6 @@
                 <ul class="user-list" id="room-list-white" style="margin-top:10px;"></ul>
             </div>
         </div>
-
         <div style="background:#121821; padding:12px; border-radius:8px; margin-top:15px; border:1px solid #2d3748;">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
                 <span style="font-size:13px; color:#319795; font-weight:bold;">👀 관전자 목록 (<span id="spectator-count">0</span>명)</span>
@@ -193,7 +167,6 @@
             </div>
             <ul class="user-list" id="room-list-spectators" style="display:flex; flex-wrap:wrap; gap:5px; background:transparent;"></ul>
         </div>
-
         <div id="room-host-controls" style="margin-top: 20px; text-align: center;" class="hidden">
             <button class="btn-main" style="padding: 12px; width: 220px;" onclick="startGame()">🎲 오목 게임 시작하기!</button>
         </div>
@@ -202,10 +175,9 @@
     <!-- 게임 플레이 / 관전 화면 -->
     <div id="view-game" class="card hidden">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-            <div id="game-mode-title" style="font-size: 14px; font-weight: bold; color: #66fcf1;">🎮 오목 대국 중</div>
+            <div id="game-mode-title" style="font-size: 14px; font-weight: bold; color: #66fcf1;">🎮 대국 진행 중</div>
             <button class="btn-danger" onclick="leaveRoom()">나가기 🚪</button>
         </div>
-
         <div class="game-layout">
             <div>
                 <div id="game-turn-badge" style="text-align: center; font-size: 18px; font-weight: bold; color: #66fcf1; margin-bottom: 12px; background: #121821; padding: 10px; border-radius: 8px; border: 1px solid #2d3748;">턴 정보</div>
@@ -213,7 +185,6 @@
                     <div class="omok-board" id="omok-board"></div>
                 </div>
             </div>
-
             <div class="game-chat-panel">
                 <h3 style="margin-top:0; font-size:13px; border-bottom:1px solid #2d3748; padding-bottom:6px;">💬 게임방 채팅</h3>
                 <div class="game-chat-msgs" id="game-chat-msgs"></div>
@@ -227,8 +198,7 @@
 </div>
 
 <script>
-    // 기존 데이터 충돌 방지를 위해 DB 경로를 완전히 독립된 새로운 공간으로 분리했습니다.
-    const FIREBASE_BASE_URL = "https://andy-5cb5e-default-rtdb.firebaseio.com/omok_platform_v2";
+    const FIREBASE_BASE_URL = "https://andy-5cb5e-default-rtdb.firebaseio.com/omok_platform_v3";
     const BOARD_SIZE = 15;
 
     let currentUser = null;
@@ -327,7 +297,6 @@
     function renderLobbyView() {
         let roomListBox = document.getElementById('room-list-box');
         if (!roomListBox) return;
-        
         let rooms = globalData.rooms || {};
         let html = '';
         let roomKeys = Object.keys(rooms);
@@ -430,10 +399,10 @@
         let newRoom = {
             id: rId,
             status: 'waiting',
-            players: {
-                [currentUser.id]: { id: currentUser.id, team: 'black' }
+            players: {},
+            spectators: {
+                [currentUser.id]: { id: currentUser.id }
             },
-            spectators: {},
             board: Array(BOARD_SIZE).fill().map(() => Array(BOARD_SIZE).fill(null)),
             turn: 'black',
             chat: []
@@ -451,9 +420,10 @@
 
         currentRoomId = rId;
         if (!room.spectators) room.spectators = {};
+        if (!room.players) room.players = {};
         
-        // 오셀로 방식: 방에 처음 들어갈 때는 무조건 관전자로 자동 등록
-        if (!room.players || !room.players[currentUser.id]) {
+        // 오셀로 방식: 방에 처음 들어갈 때는 무조건 관전자로 등록
+        if (!room.players[currentUser.id] && !room.spectators[currentUser.id]) {
             room.spectators[currentUser.id] = { id: currentUser.id };
         }
 
@@ -585,7 +555,6 @@
                     cell.appendChild(stone);
                 }
 
-                // 관전자는 클릭하여 돌을 놓을 수 없음
                 if (!isSpectator && room.status === 'playing') {
                     cell.onclick = () => makeMove(r, c);
                 }
@@ -714,7 +683,6 @@
         await fetch(`${FIREBASE_BASE_URL}/${path}.json`, { method: 'DELETE' });
     }
 
-    // 항상 깔끔한 로그인 창에서 시작하도록 세션 초기화
     window.onload = () => {
         currentUser = null;
         currentRoomId = null;
