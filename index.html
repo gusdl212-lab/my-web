@@ -37,10 +37,6 @@
         .btn-main { background: #66fcf1; color: #0b0c10; font-size: 14px; font-weight: 800; }
         .btn-main:hover { background: #45a29e; }
         .btn-danger { background: #e53e3e; color: #fff; padding: 5px 10px; font-size: 11px; width: auto; }
-        .btn-ai { background: #d69e2e; color: #fff; }
-        .btn-ai:hover { background: #b7791f; }
-        .btn-explode { background: #805ad5; color: #fff; }
-        .btn-explode:hover { background: #6b46c1; }
         .btn-spectate { background: #319795; color: #fff; }
         .btn-spectate:hover { background: #2c7a7b; }
 
@@ -99,7 +95,6 @@
         .stone { width: 85%; height: 85%; border-radius: 50%; position: absolute; z-index: 5; box-shadow: 2px 2px 4px rgba(0,0,0,0.4); }
         .stone.black { background: radial-gradient(circle at 35% 35%, #555, #000); }
         .stone.white { background: radial-gradient(circle at 35% 35%, #fff, #bbb); border: 1px solid #888; }
-        .last-move-marker { width: 6px; height: 6px; background: #ff4d4d; border-radius: 50%; position: absolute; z-index: 6; }
 
         .hidden { display: none !important; }
 
@@ -112,12 +107,6 @@
             font-size: 12px; color: #a0aec0; margin-bottom: 12px;
         }
         .checkbox-group label { display: flex; align-items: center; gap: 5px; cursor: pointer; }
-
-        #pause-overlay {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(11, 12, 16, 0.85); display: flex; flex-direction: column;
-            justify-content: center; align-items: center; z-index: 10; border-radius: 10px;
-        }
     </style>
 </head>
 <body style="visibility: visible;">
@@ -128,15 +117,14 @@
         <h1 style="margin: 0;">멀티 오목 대전 플랫폼</h1>
     </div>
     <div class="status-bar">
-        <span>🌐 렌주룰(3-3, 4-4, 장목 금수) 및 관전 모드 통합 버전</span>
-        <span style="color: #66fcf1; font-weight: bold;">Omok v1.6 (Renju & Spectator)</span>
+        <span>🌐 렌주룰(3-3, 4-4, 장목 금수) 및 관전 모드 지원</span>
+        <span style="color: #66fcf1; font-weight: bold;">Omok v1.6 (Spectator)</span>
     </div>
 
     <!-- [뷰 1] 로그인 / 회원가입 화면 -->
     <div id="view-auth" class="card auth-box">
         <div id="form-login">
             <h3 style="text-align:center; color:#66fcf1;">🔐 로그인</h3>
-            <p style="font-size: 11px; color: #aaa; text-align: center; margin-bottom: 10px;">오셀로 연동 계정 정보로 로그인하세요.</p>
             <input type="text" id="login-id" placeholder="아이디를 입력하세요" maxlength="20" onkeypress="if(event.key==='Enter') handleLogin()">
             <input type="password" id="login-pw" placeholder="비밀번호를 입력하세요" maxlength="20" onkeypress="if(event.key==='Enter') handleLogin()">
             
@@ -183,7 +171,7 @@
                 [오목 로비] 환영합니다, <strong id="my-profile-name"></strong>님 (<span id="my-profile-grade" style="color:#ffd700;">1단</span>)
             </div>
             <div style="display:flex; gap:8px; align-items:center;">
-                <button class="btn-danger" style="width:auto;" onclick="handleLogout()">로그아웃 🚪</button>
+                <button class="btn-danger" onclick="handleLogout()">로그아웃 🚪</button>
             </div>
         </div>
 
@@ -227,7 +215,7 @@
             <div style="display:flex; align-items:center; gap:10px;">
                 <h3>🏠 오목 방 이름: <span id="display-room-id" style="color:#66fcf1;"></span></h3>
             </div>
-            <button class="btn-danger" style="width:auto;" onclick="leaveRoom()">방 나가기 🚪</button>
+            <button class="btn-danger" onclick="leaveRoom()">방 나가기 🚪</button>
         </div>
 
         <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px; margin-top:15px;">
@@ -247,7 +235,6 @@
             </div>
         </div>
 
-        <!-- 관전자 목록 표시 영역 -->
         <div style="background:#121821; padding:12px; border-radius:8px; margin-top:15px; border:1px solid #2d3748;">
             <span style="font-size:13px; color:#319795; font-weight:bold;">👀 관전자 목록 (<span id="spectator-count">0</span>명)</span>
             <ul class="user-list" id="room-list-spectators" style="margin-top:8px; display:flex; flex-wrap:wrap; gap:5px; background:transparent;"></ul>
@@ -264,7 +251,7 @@
             <div style="display:flex; align-items:center; gap:10px;">
                 <div id="game-mode-title" style="font-size: 14px; font-weight: bold; color: #66fcf1;">🎮 오목 대국 중</div>
             </div>
-            <button class="btn-danger" style="width:auto;" onclick="leaveRoom()">나가기 🚪</button>
+            <button class="btn-danger" onclick="leaveRoom()">나가기 🚪</button>
         </div>
 
         <div class="game-layout">
@@ -273,11 +260,6 @@
                 
                 <div class="board-wrapper">
                     <div class="omok-board" id="omok-board"></div>
-
-                    <div id="pause-overlay" class="hidden">
-                        <h2 style="color: #ffd700; margin-bottom: 10px;">⏸️ 게임 일시정지</h2>
-                        <p id="pause-by-text" style="font-size: 14px; color: #e0e6ed; margin-bottom: 20px; text-align: center;"></p>
-                    </div>
                 </div>
             </div>
 
@@ -300,11 +282,12 @@
 
     let currentUser = null;
     let currentRoomId = null;
-    let globalData = { users: {}, rooms: {}, lobbyChat: [] };
+    let globalData = { users: {}, rooms: {}, lobbyChat: [], online: {} };
     let syncInterval = null;
+    let heartbeatInterval = null;
     let whisperTarget = null;
 
-    // 로비 방 목록 렌더링 (관전 버튼 포함)
+    // 로비 방 목록 렌더링
     function renderLobbyView() {
         let roomListBox = document.getElementById('room-list-box');
         let rooms = globalData.rooms || {};
@@ -313,6 +296,7 @@
         let roomKeys = Object.keys(rooms);
         if (roomKeys.length === 0) {
             roomListBox.innerHTML = '<div style="text-align: center; color: #888; padding: 20px;">개설된 방이 없습니다.</div>';
+            renderRankingList();
             return;
         }
 
@@ -320,7 +304,7 @@
             let r = rooms[rId];
             let pCount = r.players ? Object.keys(r.players).length : 0;
             let sCount = r.spectators ? Object.keys(r.spectators).length : 0;
-            let statusText = r.status === 'playing' ? '🔴 대국 중' : (r.status === 'paused' ? '⏸️ 일시정지' : '🟢 대기 중');
+            let statusText = r.status === 'playing' ? '🔴 대국 중' : '🟢 대기 중';
 
             html += `
                 <div class="room-item">
@@ -340,12 +324,19 @@
         renderRankingList();
     }
 
-    // 랭킹 리스트 렌더링
+    // 랭킹 리스트 렌더링 오류 수정본
     function renderRankingList() {
         let rankingEl = document.getElementById('ranking-list');
+        if (!rankingEl) return;
+        
         let users = globalData.users || {};
         let userArray = Object.values(users).sort((a, b) => (b.omokScore || 0) - (a.omokScore || 0));
         
+        if (userArray.length === 0) {
+            rankingEl.innerHTML = '<div style="text-align:center; color:#888; padding:10px;">등록된 유저가 없습니다.</div>';
+            return;
+        }
+
         let html = '';
         userArray.forEach((u, idx) => {
             let isAdmin = u.id === ADMIN_ID;
@@ -360,10 +351,49 @@
                 </div>
             `;
         });
-        rankingEl.innerHTML = html || '<div style="text-align:center; color:#888; padding:10px;">등록된 유저가 없습니다.</div>';
+        rankingEl.innerHTML = html;
     }
 
-    // 방 들어가기 (참가 및 관전 모드 분기)
+    // 실제 접속 중인 유저만 필터링하는 로직
+    function renderOnlineUsers() {
+        let listEl = document.getElementById('online-user-list');
+        if (!listEl) return;
+        
+        let onlineObj = globalData.online || {};
+        let now = Date.now();
+        let html = '';
+        let count = 0;
+
+        for (let [uId, lastSeen] of Object.entries(onlineObj)) {
+            // 최근 10초 이내에 하트비트를 보낸 유저만 실시간 접속자로 인정
+            if (now - lastSeen < 10000) {
+                count++;
+                let isSelected = whisperTarget === uId;
+                let bgStyle = isSelected ? 'background: #2b6cb0;' : '';
+                html += `<li class="user-item" style="${bgStyle}" onclick="setWhisperTarget('${uId}')"><span>${uId}</span> <span style="font-size:10px; color:#4eacc5;">온라인</span></li>`;
+            }
+        }
+        listEl.innerHTML = html;
+        document.getElementById('online-count').innerText = count;
+    }
+
+    // 하트비트 전송 (내가 접속해 있음을 서버에 5초마다 알림)
+    function startHeartbeat() {
+        if (!currentUser) return;
+        if (heartbeatInterval) clearInterval(heartbeatInterval);
+        
+        let sendPing = async () => {
+            if (!currentUser) return;
+            await fetch(`${FIREBASE_BASE_URL}/online/${currentUser.id}.json`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(Date.now())
+            });
+        };
+        sendPing();
+        heartbeatInterval = setInterval(sendPing, 5000);
+    }
+
     async function joinRoom(rId, isSpectator = false) {
         await fetchSystemData();
         let room = globalData.rooms[rId];
@@ -417,12 +447,8 @@
         let room = globalData.rooms[currentRoomId];
         
         if (room) {
-            if (room.players && room.players[currentUser.id]) {
-                delete room.players[currentUser.id];
-            }
-            if (room.spectators && room.spectators[currentUser.id]) {
-                delete room.spectators[currentUser.id];
-            }
+            if (room.players && room.players[currentUser.id]) delete room.players[currentUser.id];
+            if (room.spectators && room.spectators[currentUser.id]) delete room.spectators[currentUser.id];
 
             let totalRemaining = Object.keys(room.players || {}).length + Object.keys(room.spectators || {}).length;
             if (totalRemaining === 0) {
@@ -443,7 +469,6 @@
         document.getElementById('view-lobby').classList.add('hidden');
         document.getElementById('view-room').classList.add('hidden');
         document.getElementById('view-game').classList.add('hidden');
-
         document.getElementById(viewId).classList.remove('hidden');
     }
 
@@ -452,7 +477,6 @@
         let room = globalData.rooms[currentRoomId];
         if (!room) return;
 
-        let isPlayer = room.players && room.players[currentUser.id];
         let isSpectator = room.spectators && room.spectators[currentUser.id];
 
         if (room.status === 'waiting') {
@@ -510,7 +534,7 @@
         let isSpectator = room.spectators && room.spectators[currentUser.id];
         let turnBadge = document.getElementById('game-turn-badge');
         
-        turnBadge.innerText = room.status === 'playing' ? `현재 차례: ${room.turn === 'black' ? '⚫ 흑돌' : '⚪ 백돌'}` : '게임 일시정지 중';
+        turnBadge.innerText = `현재 차례: ${room.turn === 'black' ? '⚫ 흑돌' : '⚪ 백돌'}`;
 
         for (let r = 0; r < BOARD_SIZE; r++) {
             for (let c = 0; c < BOARD_SIZE; c++) {
@@ -553,6 +577,7 @@
                     globalData.users = data.users || {};
                     globalData.rooms = data.rooms || {};
                     globalData.lobbyChat = data.lobbyChat || [];
+                    globalData.online = data.online || {};
                 }
             }
         } catch (e) {
@@ -613,6 +638,7 @@
         localStorage.setItem('omok_session_user', id);
         switchView('view-lobby');
         startMainSync();
+        startHeartbeat();
     }
 
     function handleLogout() {
@@ -620,6 +646,7 @@
         localStorage.removeItem('omok_session_room');
         currentUser = null;
         currentRoomId = null;
+        if (heartbeatInterval) clearInterval(heartbeatInterval);
         switchView('view-auth');
     }
 
@@ -693,22 +720,6 @@
         renderRoomOrGameView();
     }
 
-    function renderOnlineUsers() {
-        let listEl = document.getElementById('online-user-list');
-        let users = globalData.users || {};
-        let html = '';
-        let count = 0;
-
-        for (let uId of Object.keys(users)) {
-            count++;
-            let isSelected = whisperTarget === uId;
-            let bgStyle = isSelected ? 'background: #2b6cb0;' : '';
-            html += `<li class="user-item" style="${bgStyle}" onclick="setWhisperTarget('${uId}')"><span>${uId}</span> <span style="font-size:10px; color:#4eacc5;">접속중</span></li>`;
-        }
-        listEl.innerHTML = html;
-        document.getElementById('online-count').innerText = count;
-    }
-
     function setWhisperTarget(uId) {
         if (whisperTarget === uId) {
             whisperTarget = null;
@@ -735,6 +746,8 @@
 
     function renderLobbyChat() {
         let chatMsgs = document.getElementById('lobby-chat-msgs');
+        if (!chatMsgs) return;
+        
         let chats = globalData.lobbyChat || [];
         let html = '';
 
@@ -767,6 +780,8 @@
 
     function renderGameChat(room) {
         let chatMsgs = document.getElementById('game-chat-msgs');
+        if (!chatMsgs) return;
+        
         let chats = room.chat || [];
         let html = '';
 
@@ -776,6 +791,27 @@
         chatMsgs.innerHTML = html;
         chatMsgs.scrollTop = chatMsgs.scrollHeight;
     }
+
+    // 자동 로그인 세션 복구 처리
+    window.onload = async () => {
+        let savedUser = localStorage.getItem('omok_session_user');
+        let savedRoom = localStorage.getItem('omok_session_room');
+        
+        if (savedUser) {
+            await fetchSystemData();
+            if (globalData.users[savedUser]) {
+                currentUser = globalData.users[savedUser];
+                switchView('view-lobby');
+                startMainSync();
+                startHeartbeat();
+
+                if (savedRoom && globalData.rooms[savedRoom]) {
+                    currentRoomId = savedRoom;
+                    renderRoomOrGameView();
+                }
+            }
+        }
+    };
 </script>
 </body>
 </html>
