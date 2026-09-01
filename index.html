@@ -125,7 +125,7 @@
     <h1>⚫⚪ 멀티 오목 대전 플랫폼</h1>
     <div class="status-bar">
         <span>🌐 렌주룰(3-3, 4-4, 장목 금수 적용) 통합 버전</span>
-        <span style="color: #66fcf1; font-weight: bold;">Omok v1.11</span>
+        <span style="color: #66fcf1; font-weight: bold;">Omok v1.12</span>
     </div>
 
     <!-- [뷰 1] 로그인 / 회원가입 화면 -->
@@ -515,7 +515,7 @@
         for (const [pId, pData] of Object.entries(room.players)) {
             if (pData.isAi) continue;
             const userObj = globalData.users[pId];
-            if (!userObj || (now - (userObj.lastActive || 0) > 15000)) {
+            if (!userObj || (now - (userObj.lastActive || 0) > 60000)) {
                 delete room.players[pId];
                 updated = true;
             }
@@ -530,6 +530,7 @@
             return;
         }
 
+        // 활동 신호가 잠깐 끊겼다고 즉시 승패를 결정하지 않도록 충분한 유예시간을 둡니다.
         if (room.status === 'playing' || room.status === 'paused') {
             const playersList = Object.values(room.players);
             const blackTeamExists = playersList.some(p => p.team === 'black');
