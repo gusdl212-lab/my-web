@@ -125,7 +125,7 @@
     <h1>⚫⚪ 멀티 오목 대전 플랫폼</h1>
     <div class="status-bar">
         <span>🌐 렌주룰(3-3, 4-4, 장목 금수 적용) 통합 버전</span>
-        <span style="color: #66fcf1; font-weight: bold;">Omok v1.10</span>
+        <span style="color: #66fcf1; font-weight: bold;">Omok v1.11</span>
     </div>
 
     <!-- [뷰 1] 로그인 / 회원가입 화면 -->
@@ -1277,132 +1277,125 @@
     }
 
     function checkBlackFouls(board, idx, N) {
+        // 렌주룰 기준 흑돌 금수: 장목(6목 이상), 4-4, 3-3
         let tempBoard = [...board];
         tempBoard[idx] = 1;
 
-        let r = Math.floor(idx / N);
-        let c = idx % N;
+        const r = Math.floor(idx / N);
+        const c = idx % N;
+        const directions = [[0, 1], [1, 0], [1, 1], [1, -1]];
 
-        const directions = [
-            [[0, 1], [0, -1]],   
-            [[1, 0], [-1, 0]],   
-            [[1, 1], [-1, -1]],  
-            [[1, -1], [-1, 1]]   
-        ];
-
-        for (let dir of directions) {
-            let count = 1;
-            for (let [dr, dc] of dir) {
-                let nr = r + dr, nc = c + dc;
-                while (nr >= 0 && nr < N && nc >= 0 && nc < N && tempBoard[nr * N + nc] === 1) {
-                    count++;
-                    nr += dr;
-                    nc += dc;
-                }
-            }
-            if (count > 5) return "overline";
+        function inside(rr, cc) {
+            return rr >= 0 && rr < N && cc >= 0 && cc < N;
         }
 
-        // v1.10 삼삼(3-3) 금수 판정:
-        // 기존의 "연속된 3개"만 세는 방식으로는 XX_X / X_XX 같은
-        // 끊어진 열린 3을 놓치는 문제가 있어, 착점으로 만들어지는
-        // 대표적인 열린 3 패턴(.XXX., .XX.X., .X.XX.)까지 검사합니다.
-        let openThreeCount = 0;
+        function getLine(dr, dc, state) {
+            let rr = r, cc = c;
+            while (inside(rr - dr, cc - dc)) {
+                rr -= dr;
+                cc -= dc;
+            }
+            const cells = [];
+            let moveIndex = -1;
+            while (inside(rr, cc)) {
+                if (rr * N + cc === idx) moveIndex = cells.length;
+                cells.push(state[rr * N + cc]);
+                rr += dr;
+                cc += dc;
+            }
+            return { cells, moveIndex };
+        }
 
-        function isOpenThreeInDirection(dr, dc) {
-            const values = [];
+        function getRun(cells, pos) {
+            let left = pos;
+            let right = pos;
+            while (left > 0 && cells[left - 1] === 1) left--;
+            while (right + 1 < cells.length && cells[right + 1] === 1) right++;
+            return { length: right - left + 1, left, right };
+        }
 
-            // 착점 기준 양쪽 4칸을 확인합니다.
-            for (let offset = -4; offset <= 4; offset++) {
-                const nr = r + dr * offset;
-                const nc = c + dc * offset;
+        // 1. 장목: 흑돌 6개 이상 연속은 금수
+        for (const [dr, dc] of directions) {
+            const line = getLine(dr, dc, tempBoard);
+            if (getRun(line.cells, line.moveIndex).length >= 6) return "overline";
+        }
 
-                if (nr < 0 || nr >= N || nc < 0 || nc >= N) {
-                    values.push('#');
-                } else {
-                    const v = tempBoard[nr * N + nc];
-                    values.push(v === 1 ? 'X' : (v === 0 ? '.' : 'O'));
+        // 착점이 포함된 선의 모든 칸을 board index로 얻습니다.
+        function getLineIndices(dr, dc) {
+            let rr = r, cc = c;
+            while (inside(rr - dr, cc - dc)) {
+                rr -= dr;
+                cc -= dc;
+            }
+            const result = [];
+            while (inside(rr, cc)) {
+                result.push(rr * N + cc);
+                rr += dr;
+                cc += dc;
+            }
+            return result;
+        }
+
+        // 해당 방향에 '활삼'이 존재하는지 검사합니다.
+        // 활삼: 착점 후 3개의 흑돌이 한 방향에서 위협을 만들고,
+        // 빈칸 하나를 막아도 다른 쪽을 통해 4목/5목으로 이어지는 형태.
+        // 실제로는 한 방향의 선을 문자열처럼 검사하여
+        // 대표적인 활삼 패턴(.XXX., .XX.X., .X.XX.)을 모두 인식합니다.
+        function isOpenThreeDirection(dr, dc) {
+            const line = getLine(dr, dc, tempBoard);
+            const cells = line.cells;
+            const p = line.moveIndex;
+            const symbols = cells.map(v => v === 1 ? 'X' : (v === 2 ? 'O' : '.'));
+
+            // 착점이 포함된 모든 길이 5~6의 구간을 검사합니다.
+            // '#' (보드 밖)은 빈칸이 아니므로 양 끝이 실제 빈칸이어야 합니다.
+            for (let start = Math.max(0, p - 5); start <= Math.min(cells.length - 5, p); start++) {
+                const end = Math.min(cells.length, start + 7);
+                const sub = symbols.slice(start, end).join('');
+                const relP = p - start;
+                if (relP < 0 || relP >= sub.length) continue;
+
+                // 일반적인 활삼
+                if (sub.includes('.XXX.') && sub.indexOf('.XXX.') <= relP && relP <= sub.indexOf('.XXX.') + 4) {
+                    return true;
+                }
+                // 끊어진 활삼: .XX.X. / .X.XX.
+                if (sub.includes('.XX.X.') && sub.indexOf('.XX.X.') <= relP && relP <= sub.indexOf('.XX.X.') + 5) {
+                    return true;
+                }
+                if (sub.includes('.X.XX.') && sub.indexOf('.X.XX.') <= relP && relP <= sub.indexOf('.X.XX.') + 5) {
+                    return true;
                 }
             }
-
-            const movePos = 4;
-            const patterns = [
-                { text: '.XXX.', movePositions: [1, 2, 3] },
-                { text: '.XX.X.', movePositions: [1, 2, 4] },
-                { text: '.X.XX.', movePositions: [1, 3, 4] }
-            ];
-
-            for (const pattern of patterns) {
-                const len = pattern.text.length;
-
-                for (let start = 0; start <= values.length - len; start++) {
-                    if (movePos < start || movePos >= start + len) continue;
-
-                    let matched = true;
-                    for (let j = 0; j < len; j++) {
-                        if (values[start + j] !== pattern.text[j]) {
-                            matched = false;
-                            break;
-                        }
-                    }
-
-                    if (!matched) continue;
-
-                    const patternMovePos = movePos - start;
-                    if (pattern.movePositions.includes(patternMovePos)) {
-                        return true;
-                    }
-                }
-            }
-
             return false;
         }
 
-        const threeDirections = [
-            [0, 1],
-            [1, 0],
-            [1, 1],
-            [1, -1]
-        ];
-
-        for (let [dr, dc] of threeDirections) {
-            if (isOpenThreeInDirection(dr, dc)) openThreeCount++;
+        let openThreeCount = 0;
+        for (const [dr, dc] of directions) {
+            if (isOpenThreeDirection(dr, dc)) openThreeCount++;
         }
-
         if (openThreeCount >= 2) return "three_three";
 
-        // 기존 사사(4-4) 판정 로직은 그대로 유지합니다.
-        let fourCount = 0;
+        // 3. 4-4: 착점 후 서로 다른 두 방향에서 5목을 만들 수 있는 위협이 생기면 금수
+        function hasFourThreat(dr, dc) {
+            const line = getLine(dr, dc, tempBoard);
+            if (getRun(line.cells, line.moveIndex).length >= 5) return false;
 
-        for (let dir of directions) {
-            let lineStones = [{r, c}];
-            
-            for (let [dr, dc] of dir) {
-                let nr = r + dr, nc = c + dc;
-                let directionStones = [];
-                while (nr >= 0 && nr < N && nc >= 0 && nc < N && tempBoard[nr * N + nc] === 1) {
-                    directionStones.push({r: nr, c: nc});
-                    nr += dr;
-                    nc += dc;
-                }
-                if (dr === dir[0][0]) lineStones = directionStones.concat(lineStones);
-                else lineStones = lineStones.concat(directionStones);
+            for (const extraIndex of getLineIndices(dr, dc)) {
+                if (tempBoard[extraIndex] !== 0) continue;
+                const testBoard = [...tempBoard];
+                testBoard[extraIndex] = 1;
+                const testLine = getLine(dr, dc, testBoard);
+                const run = getRun(testLine.cells, testLine.moveIndex);
+                if (run.length === 5) return true;
             }
-
-            let totalLen = lineStones.length;
-            let first = lineStones[0];
-            let last = lineStones[lineStones.length - 1];
-            
-            let openCount = 0;
-            let d1r = first.r - dir[0][0], d1c = first.c - dir[0][1];
-            if (d1r >= 0 && d1r < N && d1c >= 0 && d1c < N && tempBoard[d1r * N + d1c] === 0) openCount++;
-            
-            let d2r = last.r + dir[0][0], d2c = last.c + dir[0][1];
-            if (d2r >= 0 && d2r < N && d2c >= 0 && d2c < N && tempBoard[d2r * N + d2c] === 0) openCount++;
-
-            if (totalLen === 4 && openCount >= 1) fourCount++;
+            return false;
         }
 
+        let fourCount = 0;
+        for (const [dr, dc] of directions) {
+            if (hasFourThreat(dr, dc)) fourCount++;
+        }
         if (fourCount >= 2) return "four_four";
 
         return null;
