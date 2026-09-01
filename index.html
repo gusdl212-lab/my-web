@@ -2,7 +2,7 @@
 <html lang="ko"><head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>⚫⚪ 멀티 오목 대전 플랫폼 (렌주룰 적용 v1.9 - AI 안정화 패치)</title>
+    <title>⚫⚪ 멀티 오목 대전 플랫폼 (렌주룰 적용 v1.10 - 삼삼 금수 수정)</title>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <style>
         * { box-sizing: border-box; font-family: 'Pretendard', -apple-system, sans-serif; }
@@ -125,7 +125,7 @@
     <h1>⚫⚪ 멀티 오목 대전 플랫폼</h1>
     <div class="status-bar">
         <span>🌐 렌주룰(3-3, 4-4, 장목 금수 적용) 통합 버전</span>
-        <span style="color: #66fcf1; font-weight: bold;">Omok v1.9</span>
+        <span style="color: #66fcf1; font-weight: bold;">Omok v1.10</span>
     </div>
 
     <!-- [뷰 1] 로그인 / 회원가입 화면 -->
@@ -1303,7 +1303,75 @@
             if (count > 5) return "overline";
         }
 
+        // v1.10 삼삼(3-3) 금수 판정:
+        // 기존의 "연속된 3개"만 세는 방식으로는 XX_X / X_XX 같은
+        // 끊어진 열린 3을 놓치는 문제가 있어, 착점으로 만들어지는
+        // 대표적인 열린 3 패턴(.XXX., .XX.X., .X.XX.)까지 검사합니다.
         let openThreeCount = 0;
+
+        function isOpenThreeInDirection(dr, dc) {
+            const values = [];
+
+            // 착점 기준 양쪽 4칸을 확인합니다.
+            for (let offset = -4; offset <= 4; offset++) {
+                const nr = r + dr * offset;
+                const nc = c + dc * offset;
+
+                if (nr < 0 || nr >= N || nc < 0 || nc >= N) {
+                    values.push('#');
+                } else {
+                    const v = tempBoard[nr * N + nc];
+                    values.push(v === 1 ? 'X' : (v === 0 ? '.' : 'O'));
+                }
+            }
+
+            const movePos = 4;
+            const patterns = [
+                { text: '.XXX.', movePositions: [1, 2, 3] },
+                { text: '.XX.X.', movePositions: [1, 2, 4] },
+                { text: '.X.XX.', movePositions: [1, 3, 4] }
+            ];
+
+            for (const pattern of patterns) {
+                const len = pattern.text.length;
+
+                for (let start = 0; start <= values.length - len; start++) {
+                    if (movePos < start || movePos >= start + len) continue;
+
+                    let matched = true;
+                    for (let j = 0; j < len; j++) {
+                        if (values[start + j] !== pattern.text[j]) {
+                            matched = false;
+                            break;
+                        }
+                    }
+
+                    if (!matched) continue;
+
+                    const patternMovePos = movePos - start;
+                    if (pattern.movePositions.includes(patternMovePos)) {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        const threeDirections = [
+            [0, 1],
+            [1, 0],
+            [1, 1],
+            [1, -1]
+        ];
+
+        for (let [dr, dc] of threeDirections) {
+            if (isOpenThreeInDirection(dr, dc)) openThreeCount++;
+        }
+
+        if (openThreeCount >= 2) return "three_three";
+
+        // 기존 사사(4-4) 판정 로직은 그대로 유지합니다.
         let fourCount = 0;
 
         for (let dir of directions) {
@@ -1332,11 +1400,9 @@
             let d2r = last.r + dir[0][0], d2c = last.c + dir[0][1];
             if (d2r >= 0 && d2r < N && d2c >= 0 && d2c < N && tempBoard[d2r * N + d2c] === 0) openCount++;
 
-            if (totalLen === 3 && openCount >= 2) openThreeCount++;
             if (totalLen === 4 && openCount >= 1) fourCount++;
         }
 
-        if (openThreeCount >= 2) return "three_three";
         if (fourCount >= 2) return "four_four";
 
         return null;
