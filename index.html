@@ -224,6 +224,19 @@
 
 
 
+
+        /* 일반 사용자용 게임 목록 */
+        .game-menu { display:flex; flex-direction:column; gap:6px; }
+        .game-menu-item { display:flex; align-items:center; gap:8px; padding:10px 9px; border-radius:7px; background:#1f2833; border:1px solid #2d3748; color:#e0e6ed; text-decoration:none; font-size:12px; font-weight:600; transition:0.2s; cursor:pointer; }
+        .game-menu-item:hover { background:#283342; border-color:#45a29e; transform:translateX(2px); }
+        .game-menu-item.current { background:#243c3b; border-color:#66fcf1; color:#66fcf1; }
+        .game-menu-item.sub { margin-left:14px; padding:8px 9px; font-size:11px; }
+        .game-menu-item .game-icon { width:24px; text-align:center; font-size:16px; flex-shrink:0; }
+        .game-menu-item .game-name { flex:1; }
+        .game-menu-item .current-badge { font-size:9px; color:#66fcf1; border:1px solid #66fcf1; padding:2px 4px; border-radius:4px; }
+        .game-menu-divider { height:1px; background:#2d3748; margin:4px 0; }
+        .game-section-label { color:#a0aec0; font-size:10px; font-weight:bold; padding:2px 4px; }
+
         #pause-overlay {
 
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
@@ -1694,234 +1707,176 @@
 
 
 
+    function renderGameMenu() {
+        const rankEl = document.getElementById('ranking-list');
+        if (!rankEl) return;
+
+        rankEl.innerHTML = `
+            <div class="game-menu">
+                <a class="game-menu-item current" href="omok.html">
+                    <span class="game-icon">⚫⚪</span>
+                    <span class="game-name">오목</span>
+                    <span class="current-badge">현재</span>
+                </a>
+                <a class="game-menu-item" href="othello.html">
+                    <span class="game-icon">⚫⚪</span>
+                    <span class="game-name">오셀로</span>
+                </a>
+                <a class="game-menu-item" href="chess.html">
+                    <span class="game-icon">♟️</span>
+                    <span class="game-name">체스</span>
+                </a>
+                <a class="game-menu-item" href="janggi.html">
+                    <span class="game-icon">🀄</span>
+                    <span class="game-name">장기</span>
+                </a>
+                <div class="game-menu-divider"></div>
+                <div class="game-section-label">🎮 보드게임</div>
+                <a class="game-menu-item sub" href="davinci.html">
+                    <span class="game-icon">🔢</span>
+                    <span class="game-name">다빈치 코드</span>
+                </a>
+                <a class="game-menu-item sub" href="rummikub.html">
+                    <span class="game-icon">🎲</span>
+                    <span class="game-name">루미큐브</span>
+                </a>
+                <a class="game-menu-item sub" href="liar.html">
+                    <span class="game-icon">🤥</span>
+                    <span class="game-name">라이어게임</span>
+                </a>
+                <a class="game-menu-item sub" href="mafia.html">
+                    <span class="game-icon">🕵️</span>
+                    <span class="game-name">마피아게임</span>
+                </a>
+            </div>
+        `;
+    }
+
     function renderLobbyView() {
 
         if (!currentUser || !globalData) return;
 
-
-
-        const rankedUsers = calculateRanks(globalData.users);
-
         const rankEl = document.getElementById('ranking-list');
-
-        rankEl.innerHTML = '';
-
-
-
+        const leftPanelTitle = document.getElementById('left-panel-title');
         const isAdmin = (currentUser.id === ADMIN_ID);
-
         const now = Date.now();
 
+        // 관리자에게는 기존 오목 단수 랭킹을 그대로 표시하고,
+        // 일반 사용자에게는 게임 목록을 표시합니다.
+        if (isAdmin) {
+            leftPanelTitle.innerHTML = '🏆 오목 단수 랭킹';
+            rankEl.innerHTML = '';
 
+            const rankedUsers = calculateRanks(globalData.users);
 
-        rankedUsers.forEach((u, idx) => {
+            rankedUsers.forEach((u, idx) => {
+                if (!u || !u.id || u.id === 'undefined') return;
+                let displayLabel = (u.id === ADMIN_ID) ? "관리자" : u.id;
+                let scoreVal = (u.id === ADMIN_ID) ? 999 : (u.omokScore || 0);
+                const div = document.createElement('div');
+                div.className = `rank-item ${u.id === ADMIN_ID ? 'rank-admin' : ''}`;
 
-            if (!u || !u.id || u.id === 'undefined') return;
+                let adminButtons = '';
+                if (isAdmin && u.id !== ADMIN_ID) {
+                    adminButtons = `<button class="btn-danger" style="margin-left:4px; padding:2px 5px; font-size:10px;" onclick="deleteUserAccount('${u.id}')">탈퇴</button>`;
+                }
 
-            let displayLabel = (u.id === ADMIN_ID) ? "관리자" : u.id;
-
-            let scoreVal = (u.id === ADMIN_ID) ? 999 : (u.omokScore || 0);
-
-            const div = document.createElement('div');
-
-            div.className = `rank-item ${u.id === ADMIN_ID ? 'rank-admin' : ''}`;
-
-            
-
-            let adminButtons = '';
-
-            if (isAdmin && u.id !== ADMIN_ID) {
-
-                adminButtons = `<button class="btn-danger" style="margin-left:4px; padding:2px 5px; font-size:10px;" onclick="deleteUserAccount('${u.id}')">탈퇴</button>`;
-
-            }
-
-
-
-            div.innerHTML = `<span>${idx + 1}. ${displayLabel} ${u.id === ADMIN_ID ? '👑' : ''} ${adminButtons}</span><span>${u.displayGrade} (${scoreVal}점)</span>`;
-
-            rankEl.appendChild(div);
-
-        });
-
-
+                div.innerHTML = `<span>${idx + 1}. ${displayLabel} ${u.id === ADMIN_ID ? '👑' : ''} ${adminButtons}</span><span>${u.displayGrade} (${scoreVal}점)</span>`;
+                rankEl.appendChild(div);
+            });
+        } else {
+            leftPanelTitle.innerHTML = '🎮 게임 목록';
+            renderGameMenu();
+        }
 
         const onlineEl = document.getElementById('online-user-list');
-
         onlineEl.innerHTML = '';
-
         let onlineCount = 0;
 
-
-
         Object.values(globalData.users || {}).forEach(u => {
-
             if (!u || !u.id || u.id === 'undefined') return;
-
             let isOnline = (now - (u.lastActive || 0)) < 15000;
-
             if (!isOnline) return;
 
-
-
             onlineCount++;
-
             let displayLabel = (u.id === ADMIN_ID) ? "관리자" : u.id;
-
             let s = (u.id === ADMIN_ID) ? 999 : (u.omokScore || 0);
-
             let gText = getGradeText(s, u.id === ADMIN_ID);
-
             const li = document.createElement('li');
-
             li.className = 'user-item';
-
             li.style.cursor = 'pointer';
-
             li.title = "클릭하여 귓속말 설정/해제";
-
             li.onclick = () => setWhisperTarget(u.id);
 
-
-
             let adminButtons = '';
-
             if (isAdmin && u.id !== ADMIN_ID) {
-
                 adminButtons = `<button class="btn-blue" style="margin-left:4px; padding:2px 5px; font-size:10px;" onclick="event.stopPropagation(); forceLogoutUser('${u.id}')">로그아웃</button>`;
-
             }
-
-
 
             let isSelectedWhisper = whisperTarget === u.id ? ' 💬' : '';
-
             li.innerHTML = `<span>${displayLabel}${isSelectedWhisper} (${gText})</span><div style="display:flex; align-items:center;"><span style="color:#66fcf1; font-size:10px; margin-right:4px;">접속중</span>${adminButtons}</div>`;
-
             onlineEl.appendChild(li);
-
         });
-
         document.getElementById('online-count').innerText = onlineCount;
 
-
-
         const chatEl = document.getElementById('lobby-chat-msgs');
-
         chatEl.innerHTML = '';
-
         if (globalData.lobbyChat) {
-
             const validChats = globalData.lobbyChat.filter(msg => (now - (msg.time || 0)) < ONE_HOUR_MS);
 
-
-
             validChats.slice(-30).forEach(msg => {
-
                 if (msg.target && msg.target !== currentUser.id && msg.sender !== currentUser.id) {
-
                     return;
-
                 }
-
-
 
                 let senderLabel = (msg.sender === ADMIN_ID) ? "관리자" : msg.sender;
-
                 let targetLabel = (msg.target === ADMIN_ID) ? "관리자" : msg.target;
-
                 const li = document.createElement('div');
 
-
-
                 if (msg.target) {
-
                     li.className = 'chat-msg whisper';
-
                     li.innerHTML = `<span class="sender">[귓속말] ${senderLabel} ➡️ ${targetLabel}:</span> ${msg.text}`;
-
                 } else {
-
                     li.className = 'chat-msg';
-
                     li.innerHTML = `<span class="sender">${senderLabel}:</span> ${msg.text}`;
-
                 }
-
                 chatEl.appendChild(li);
-
             });
-
             chatEl.scrollTop = chatEl.scrollHeight;
-
         }
-
-
 
         const roomBox = document.getElementById('room-list-box');
-
         roomBox.innerHTML = '';
-
         if (globalData.rooms) {
-
             let hasRooms = false;
-
             for (const rId of Object.keys(globalData.rooms)) {
-
                 const room = globalData.rooms[rId];
-
                 if (!room || !room.players) continue;
-
                 hasRooms = true;
 
-
-
                 let statusText = '대기 중';
-
                 if (room.status === 'playing') statusText = '게임 중';
-
                 if (room.status === 'paused') statusText = '일시정지 중';
 
-
-
                 let adminExplodeBtn = '';
-
                 if (isAdmin) {
-
                     adminExplodeBtn = `<button class="btn-explode" style="width:auto; padding:5px 8px; font-size:11px; margin-left:4px;" onclick="explodeRoom('${rId}')">💣 폭파</button>`;
-
                 }
 
-
-
                 const item = document.createElement('div');
-
                 item.className = 'room-item';
-
                 item.innerHTML = `
-
                     <div><strong>${rId}</strong> <span style="font-size:11px; color:#aaa;">(${statusText})</span></div>
-
                     <div style="display:flex; align-items:center;">
-
                         <button class="btn-main" style="width:auto; padding:5px 10px; font-size:11px;" onclick="joinRoom('${rId}')">입장/관전</button>
-
                         ${adminExplodeBtn}
-
                     </div>
-
                 `;
-
                 roomBox.appendChild(item);
-
             }
-
             if (!hasRooms) roomBox.innerHTML = '<div style="text-align: center; color: #888; padding: 20px;">개설된 방이 없습니다.</div>';
-
         }
-
     }
-
 
 
     async function sendLobbyChat() {
