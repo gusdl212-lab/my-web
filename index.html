@@ -387,7 +387,7 @@
 
             <div class="panel">
 
-                <h3>🏆 오목 단수 랭킹</h3>
+                <h3 id="left-panel-title">🏆 오목 단수 랭킹</h3>
 
                 <div id="ranking-list">불러오는 중...</div>
 
@@ -1764,7 +1764,7 @@
         // 관리자에게는 기존 오목 단수 랭킹을 그대로 표시하고,
         // 일반 사용자에게는 게임 목록을 표시합니다.
         if (isAdmin) {
-            leftPanelTitle.innerHTML = '🏆 오목 단수 랭킹';
+            if (leftPanelTitle) leftPanelTitle.innerHTML = '🏆 오목 단수 랭킹';
             rankEl.innerHTML = '';
 
             const rankedUsers = calculateRanks(globalData.users);
@@ -1785,7 +1785,7 @@
                 rankEl.appendChild(div);
             });
         } else {
-            leftPanelTitle.innerHTML = '🎮 게임 목록';
+            if (leftPanelTitle) leftPanelTitle.innerHTML = '🎮 게임 목록';
             renderGameMenu();
         }
 
