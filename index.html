@@ -4,7 +4,7 @@
 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>⚫⚪ 멀티 오목 대전 플랫폼 (렌주룰 적용 v1.14 - 턴 타이머 동기화 안정화)</title>
+    <title>⚫⚪ 멀티 오목 대전 플랫폼 (렌주룰 적용 v1.17 - 게임 목록 및 관리자 랭킹 안정화)</title>
 
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 
@@ -263,7 +263,7 @@
 
         <span>🌐 렌주룰(3-3, 4-4, 장목 금수 적용) 통합 버전</span>
 
-        <span style="color: #66fcf1; font-weight: bold;">Omok v1.14</span>
+        <span style="color: #66fcf1; font-weight: bold;">Omok v1.17</span>
 
     </div>
 
@@ -1713,38 +1713,38 @@
 
         rankEl.innerHTML = `
             <div class="game-menu">
-                <a class="game-menu-item current" href="omok.html">
+                <a class="game-menu-item current" href="omok_v1.17_game_menu.html">
                     <span class="game-icon">⚫⚪</span>
                     <span class="game-name">오목</span>
                     <span class="current-badge">현재</span>
                 </a>
-                <a class="game-menu-item" href="othello.html">
+                <a class="game-menu-item" href="othello_v2.14.html">
                     <span class="game-icon">⚫⚪</span>
                     <span class="game-name">오셀로</span>
                 </a>
-                <a class="game-menu-item" href="chess.html">
+                <a class="game-menu-item" href="체스v1.6.html">
                     <span class="game-icon">♟️</span>
                     <span class="game-name">체스</span>
                 </a>
-                <a class="game-menu-item" href="janggi.html">
+                <a class="game-menu-item" href="장기v1.0.html">
                     <span class="game-icon">🀄</span>
                     <span class="game-name">장기</span>
                 </a>
                 <div class="game-menu-divider"></div>
                 <div class="game-section-label">🎮 보드게임</div>
-                <a class="game-menu-item sub" href="davinci.html">
+                <a class="game-menu-item sub" href="파티게임라운지_v3.31_자동분리수정.html">
                     <span class="game-icon">🔢</span>
                     <span class="game-name">다빈치 코드</span>
                 </a>
-                <a class="game-menu-item sub" href="rummikub.html">
+                <a class="game-menu-item sub" href="파티게임라운지_v3.31_자동분리수정.html">
                     <span class="game-icon">🎲</span>
                     <span class="game-name">루미큐브</span>
                 </a>
-                <a class="game-menu-item sub" href="liar.html">
+                <a class="game-menu-item sub" href="파티게임라운지_v3.31_자동분리수정.html">
                     <span class="game-icon">🤥</span>
                     <span class="game-name">라이어게임</span>
                 </a>
-                <a class="game-menu-item sub" href="mafia.html">
+                <a class="game-menu-item sub" href="파티게임라운지_v3.31_자동분리수정.html">
                     <span class="game-icon">🕵️</span>
                     <span class="game-name">마피아게임</span>
                 </a>
@@ -1765,6 +1765,7 @@
         // 일반 사용자에게는 게임 목록을 표시합니다.
         if (isAdmin) {
             if (leftPanelTitle) leftPanelTitle.innerHTML = '🏆 오목 단수 랭킹';
+            if (!rankEl) return;
             rankEl.innerHTML = '';
 
             const rankedUsers = calculateRanks(globalData.users);
@@ -2777,7 +2778,7 @@
 
 
 
-    // [v1.14 턴 타이머 동기화 / v1.13 착점 안정화] 오래된 AI 콜백이 새 턴에 착점하지 못하도록 turnId 검증
+    // [v1.17 게임 목록 / 턴 타이머 동기화 안정화] 오래된 AI 콜백이 새 턴에 착점하지 못하도록 turnId 검증
 
     function checkAndTriggerAiTurn() {
 
